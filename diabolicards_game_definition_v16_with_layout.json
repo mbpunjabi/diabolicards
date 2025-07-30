@@ -1,0 +1,1566 @@
+{
+  "zone_structure": {
+    "zones": [
+      "Vought Tower",
+      "The Boys Hideout",
+      "Godolkin Campus"
+    ],
+    "slots_per_zone": 8,
+    "diabolical_slot_per_zone": 1,
+    "se_card_placement_area": "around_diabolical_slot"
+  },
+  "game_rules": {
+    "turn_order": {
+      "start_condition": "random_player",
+      "default_order": "clockwise",
+      "modifiers": [
+        "strategy_ability",
+        "roulette_ability"
+      ]
+    },
+    "placement_rules": {
+      "slots": 8,
+      "diabolical_slot": "reserved",
+      "restrictions": {
+        "SE_cards": "must be placed near diabolical slot",
+        "diabolical_cards": "use diabolical slot only"
+      }
+    },
+    "win_condition": {
+      "trigger": "no_moves_left",
+      "calculation": {
+        "total_power": "sum of alive cards with all boosts/hinders applied",
+        "synergy_bonus": {
+          "applicable_groups": [
+            "Godolkin Class",
+            "Vought Executives",
+            "The Boys"
+          ],
+          "per_card": 1,
+          "zone_cap": 4
+        }
+      },
+      "tie": true
+    }
+  },
+  "event_rules": {
+    "scorch_the_earth": {
+      "trigger_condition": {
+        "type": "sequence",
+        "steps": [
+          "one_side_uses_SE_to_kill_all_in_zone",
+          "other_side_uses_SE_same_ability_next_turn_same_zone"
+        ],
+        "zone_must_be_fully_filled": true
+      },
+      "impact": {
+        "remove_SE_cards": true,
+        "seal_zone": true
+      },
+      "references": [
+        "SE_card_usage"
+      ]
+    }
+  },
+  "state_definitions": {
+    "how_dare_you": {
+      "activation_condition": {
+        "type": "hand_state",
+        "condition": "player_has_both_SE_cards"
+      },
+      "effects": {
+        "restrict_same_SE_ability_twice": true,
+        "same_zone_double_SE_use": {
+          "trigger": true,
+          "impact": "both_SE_cards_die"
+        }
+      },
+      "references": [
+        "SE_card_logic"
+      ]
+    }
+  },
+  "deck_registry": [
+    {
+      "id": "card_001",
+      "name": "Ryan",
+      "card_type": "Supe",
+      "power_level": 4,
+      "card_group": "Diabolical",
+      "gender": "Male",
+      "ability": "Confused Morals",
+      "ability_description": "Kill a maximum of 4 opponents OR kill a maximum of 4 teammates in the zone. You get to choose who.",
+      "ability_effect": {
+        "type": "kill",
+        "target": "opponents",
+        "max": 4,
+        "also_kill_teammates": true
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.kill_logic",
+        "game_rules.card_abilities.teammate_kill_logic"
+      ]
+    },
+    {
+      "id": "card_002",
+      "name": "Victoria Neuman",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "Diabolical",
+      "gender": "Female",
+      "ability": "Killer Look",
+      "ability_description": "Kill a maximum of 4 opponents in the zone. You get to choose who.",
+      "ability_effect": {
+        "type": "kill",
+        "target": "opponents",
+        "max": 4
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.kill_logic"
+      ]
+    },
+    {
+      "id": "card_003",
+      "name": "Golden Boy",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Diabolical",
+      "gender": "N/A",
+      "ability": "Suicide Killer",
+      "ability_description": "Kill a maximum of 4 teammates in the zone. You get to choose who. He kills himself too in the process and his dead body takes up useless space. Hence, he has 0 power.",
+      "ability_effect": {
+        "also_kill_teammates": true
+      },
+      "activation_condition": null,
+      "references": [
+        "game_rules.card_abilities.teammate_kill_logic"
+      ]
+    },
+    {
+      "id": "card_004",
+      "name": "Tek Knight",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Diabolical",
+      "gender": "N/A",
+      "ability": "Supe Prison",
+      "ability_description": "A maximum of 4 supe teammates get hindered to a power of 0 as long as he\u2019s alive. Applies to future supes as well (if initially less than 4 supes were boosted). You get to choose who. Chosen teammates cannot be changed as long as they are alive.",
+      "ability_effect": {
+        "type": "hinder",
+        "target": "teammates",
+        "value": 0,
+        "max": 4
+      },
+      "activation_condition": {
+        "while_alive": true
+      },
+      "references": [
+        "game_rules.card_abilities.hinder_logic"
+      ]
+    },
+    {
+      "id": "card_005",
+      "name": "Queen Maeve",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "Diabolical",
+      "gender": "Female",
+      "ability": "Temp V",
+      "ability_description": "A maximum of 4 human teammates get boosted to a power of 8 as long as she\u2019s alive. Applies to future humans as well (if initially less than 4 humans were boosted). You get to choose who. Chosen teammates cannot be changed as long as they are alive.",
+      "ability_effect": {
+        "type": "boost",
+        "target": "teammates",
+        "value": 8,
+        "max": 4
+      },
+      "activation_condition": {
+        "while_alive": true
+      },
+      "references": [
+        "game_rules.card_abilities.boost_logic"
+      ]
+    },
+    {
+      "id": "card_006",
+      "name": "Soldier Boy",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "Diabolical",
+      "gender": "Male",
+      "ability": "Ultimate Sacrifice",
+      "ability_description": "Kill a maximum of 4 opponents AND kill a maximum of 4 teammates in the zone. You get to choose who.",
+      "ability_effect": {
+        "type": "kill",
+        "target": "opponents",
+        "max": 4,
+        "also_kill_teammates": true
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.kill_logic",
+        "game_rules.card_abilities.teammate_kill_logic"
+      ]
+    },
+    {
+      "id": "card_007",
+      "name": "Cate Dunlap",
+      "card_type": "Supe",
+      "power_level": 6,
+      "card_group": "Godolkin Class",
+      "gender": "Female",
+      "ability": "Influence",
+      "ability_description": "Get any opponent\u02bcs card from the same zone to an empty slot in your zone",
+      "ability_effect": {
+        "type": "steal",
+        "target": "opponent",
+        "zone": "same",
+        "slot_condition": "empty"
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.influence_logic"
+      ]
+    },
+    {
+      "id": "card_008",
+      "name": "Jordan Li",
+      "card_type": "Supe",
+      "power_level": 4,
+      "card_group": "Godolkin Class",
+      "gender": "N/A",
+      "ability": "Love",
+      "ability_description": "If Marie is alive in the same zone regardless of power and side, this\ncard\u02bcs power stays at 8",
+      "ability_effect": {
+        "type": "conditional_power",
+        "value": 8
+      },
+      "activation_condition": {
+        "requires_card": "Marie Moreau"
+      },
+      "references": [
+        "game_rules.card_abilities.love_condition"
+      ]
+    },
+    {
+      "id": "card_009",
+      "name": "Rufus",
+      "card_type": "Supe",
+      "power_level": 2,
+      "card_group": "Godolkin Class",
+      "gender": "Male",
+      "ability": "Misogyny",
+      "ability_description": "Freely choose up to 4 enemy females in the zone at the instant the card is\nplayed to have 0 power while you both remain alive in the zone (N/A to Jordan Li due to\nLore accuracy). Females get their power back if they manage to shift to other zones or if\nthe character with Misogyny dies. Choices cannot be changed.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_010",
+      "name": "Indira Shetty",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "Godolkin Class",
+      "gender": "Female",
+      "ability": "Strategy",
+      "ability_description": "Get an extra turn",
+      "ability_effect": {
+        "type": "gain_turn"
+      },
+      "activation_condition": {
+        "when": "played"
+      },
+      "references": [
+        "game_rules.card_abilities.extra_turn"
+      ]
+    },
+    {
+      "id": "card_011",
+      "name": "Andre Anderson",
+      "card_type": "Supe",
+      "power_level": 6,
+      "card_group": "Godolkin Class",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_012",
+      "name": "Emma Meyer",
+      "card_type": "Supe",
+      "power_level": 4,
+      "card_group": "Godolkin Class",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_013",
+      "name": "Marie Moreau",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "Godolkin Class",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_014",
+      "name": "Sam Riordan",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "Godolkin Class",
+      "gender": "Male",
+      "ability": "Roulette",
+      "ability_description": "Put remaining 3 cards in deck and shuffle. Draw 1 card -> shuffle again. Repeat untill you draw 4 cards back. If <10 cards in deck, place cards back view up and let opponent(s) see a total of 1 random card in your hand, and then draw 1 card from deck.",
+      "ability_effect": {
+        "type": "roulette_draw",
+        "draw_count": 4
+      },
+      "activation_condition": {
+        "when": "played"
+      },
+      "references": [
+        "game_rules.card_abilities.roulette_logic"
+      ]
+    },
+    {
+      "id": "card_015",
+      "name": "Becca Butcher",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_016",
+      "name": "Cameron Coleman",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_017",
+      "name": "Hugh Campbell",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_018",
+      "name": "Joe Kessler",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_019",
+      "name": "Nina",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_020",
+      "name": "Robert Singer",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_021",
+      "name": "The Legend",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_022",
+      "name": "Todd",
+      "card_type": "Human",
+      "power_level": 0,
+      "card_group": "Innocent Humans",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_023",
+      "name": "Butcher",
+      "card_type": "Supe",
+      "power_level": 10,
+      "card_group": "Scorched Earth",
+      "gender": "Male",
+      "ability": "The Endgame",
+      "ability_description": "See 'scorched_earth_rules' object in the game definition.",
+      "ability_effect": {
+        "type": "scorched_earth"
+      },
+      "activation_condition": {
+        "when": "ability_triggered"
+      },
+      "references": [
+        "scorched_earth_rules"
+      ]
+    },
+    {
+      "id": "card_024",
+      "name": "Homelander",
+      "card_type": "Supe",
+      "power_level": 10,
+      "card_group": "Scorched Earth",
+      "gender": "Male",
+      "ability": "The Endgame",
+      "ability_description": "See 'scorched_earth_rules' object in the game definition.",
+      "ability_effect": {
+        "type": "scorched_earth"
+      },
+      "activation_condition": {
+        "when": "ability_triggered"
+      },
+      "references": [
+        "scorched_earth_rules"
+      ]
+    },
+    {
+      "id": "card_025",
+      "name": "Frenchie",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "The Boys",
+      "gender": "Male",
+      "ability": "Anti-Supe",
+      "ability_description": "Kill any 1 opponent supe in the zone",
+      "ability_effect": {
+        "type": "kill",
+        "target": "opponents",
+        "max": 4
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.kill_logic"
+      ]
+    },
+    {
+      "id": "card_026",
+      "name": "Mother's Milk",
+      "card_type": "Human",
+      "power_level": 6,
+      "card_group": "The Boys",
+      "gender": "Male",
+      "ability": "Influence",
+      "ability_description": "Get any opponent\u02bcs card from the same zone to an empty slot in your zone",
+      "ability_effect": {
+        "type": "steal",
+        "target": "opponent",
+        "zone": "same",
+        "slot_condition": "empty"
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.influence_logic"
+      ]
+    },
+    {
+      "id": "card_027",
+      "name": "Hughie",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "The Boys",
+      "gender": "Male",
+      "ability": "Love",
+      "ability_description": "If Starlight is alive in the same zone regardless of power and side, this\ncard\u02bcs power stays at 8",
+      "ability_effect": {
+        "type": "conditional_power",
+        "value": 8
+      },
+      "activation_condition": {
+        "requires_card": "Starlight"
+      },
+      "references": [
+        "game_rules.card_abilities.love_condition"
+      ]
+    },
+    {
+      "id": "card_028",
+      "name": "Kimiko",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "The Boys",
+      "gender": "Female",
+      "ability": "Regeneration",
+      "ability_description": "1st death (from any card played by any side be it Diabolical or\nScorched Earth) this card returns to the deck. If the deck is empty, card stays in the slot.\n2nd death = permanent death",
+      "ability_effect": {
+        "type": "regeneration",
+        "max_lives": 2
+      },
+      "activation_condition": {
+        "when": "dies"
+      },
+      "references": [
+        "game_rules.card_abilities.regeneration"
+      ]
+    },
+    {
+      "id": "card_029",
+      "name": "Cherie",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "The Boys",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_030",
+      "name": "Kenji",
+      "card_type": "Supe",
+      "power_level": 6,
+      "card_group": "The Boys",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_031",
+      "name": "Mallory",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "The Boys",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_032",
+      "name": "Starlight",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "The Boys",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_033",
+      "name": "A-Train",
+      "card_type": "Supe",
+      "power_level": 6,
+      "card_group": "The Seven",
+      "gender": "Male",
+      "ability": "Escape",
+      "ability_description": "1st threaten with death (from any card played by any side be it Diabolical or\nScorched Earth), move to another zone that has space. 2nd threaten = death",
+      "ability_effect": {
+        "type": "escape_once"
+      },
+      "activation_condition": {
+        "when": "threatened_with_death"
+      },
+      "references": [
+        "game_rules.card_abilities.escape"
+      ]
+    },
+    {
+      "id": "card_034",
+      "name": "Deep",
+      "card_type": "Supe",
+      "power_level": 4,
+      "card_group": "The Seven",
+      "gender": "Male",
+      "ability": "Misogyny",
+      "ability_description": "Freely choose up to 4 enemy females in the zone at the instant the card is\nplayed to have 0 power while you both remain alive in the zone (N/A to Jordan Li due to\nLore accuracy). Females get their power back if they manage to shift to other zones or if\nthe character with Misogyny dies. Choices cannot be changed.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_035",
+      "name": "Sage",
+      "card_type": "Supe",
+      "power_level": 6,
+      "card_group": "The Seven",
+      "gender": "Female",
+      "ability": "Playmaking",
+      "ability_description": "Shift one of your cards to another zone in an empty slot (from same\nstarting zone)",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_036",
+      "name": "Black Noir",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "The Seven",
+      "gender": "Male",
+      "ability": "Regeneration",
+      "ability_description": "1st death (from any card played by any side be it Diabolical or\nScorched Earth) this card returns to the deck. If the deck is empty, card stays in the slot.\n2nd death = permanent death",
+      "ability_effect": {
+        "type": "regeneration",
+        "max_lives": 2
+      },
+      "activation_condition": {
+        "when": "dies"
+      },
+      "references": [
+        "game_rules.card_abilities.regeneration"
+      ]
+    },
+    {
+      "id": "card_037",
+      "name": "Firecracker",
+      "card_type": "Supe",
+      "power_level": 4,
+      "card_group": "The Seven",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_038",
+      "name": "Lamplighter",
+      "card_type": "Supe",
+      "power_level": 2,
+      "card_group": "The Seven",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_039",
+      "name": "Stormfront",
+      "card_type": "Supe",
+      "power_level": 8,
+      "card_group": "The Seven",
+      "gender": "Female",
+      "ability": "Roulette",
+      "ability_description": "Put remaining 3 cards in deck and shuffle. Draw 1 card -> shuffle again. Repeat untill you draw 4 cards back. If <10 cards in deck, place cards back view up and let opponent(s) see a total of 1 random card in your hand, and then draw 1 card from deck.",
+      "ability_effect": {
+        "type": "roulette_draw",
+        "draw_count": 4
+      },
+      "activation_condition": {
+        "when": "played"
+      },
+      "references": [
+        "game_rules.card_abilities.roulette_logic"
+      ]
+    },
+    {
+      "id": "card_040",
+      "name": "Translucent",
+      "card_type": "Supe",
+      "power_level": 2,
+      "card_group": "The Seven",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_041",
+      "name": "Aqua Agua",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_042",
+      "name": "Boombox",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_043",
+      "name": "Ghost",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_044",
+      "name": "Human Tongue",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_045",
+      "name": "Kingdom",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_046",
+      "name": "Mo-Slo",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_047",
+      "name": "Papers",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_048",
+      "name": "The Narrator",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Useless Supes",
+      "gender": "N/A",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_049",
+      "name": "Jonah Vogelbaum",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "Vought Executives",
+      "gender": "Male",
+      "ability": "Anti-Supe",
+      "ability_description": "Kill any 1 opponent supe in the zone",
+      "ability_effect": {
+        "type": "kill",
+        "target": "opponents",
+        "max": 4
+      },
+      "activation_condition": {
+        "when": "played_in_zone"
+      },
+      "references": [
+        "game_rules.card_abilities.kill_logic"
+      ]
+    },
+    {
+      "id": "card_050",
+      "name": "Ashley",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "Vought Executives",
+      "gender": "Female",
+      "ability": "Escape",
+      "ability_description": "1st threaten with death (from any card played by any side be it Diabolical or\nScorched Earth), move to another zone that has space. 2nd threaten = death",
+      "ability_effect": {
+        "type": "escape_once"
+      },
+      "activation_condition": {
+        "when": "threatened_with_death"
+      },
+      "references": [
+        "game_rules.card_abilities.escape"
+      ]
+    },
+    {
+      "id": "card_051",
+      "name": "Madelyn Stillwell",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "Vought Executives",
+      "gender": "Female",
+      "ability": "Playmaking",
+      "ability_description": "Shift one of your cards to another zone in an empty slot (from same\nstarting zone)",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_052",
+      "name": "Stan Edgar",
+      "card_type": "Human",
+      "power_level": 4,
+      "card_group": "Vought Executives",
+      "gender": "Male",
+      "ability": "Strategy",
+      "ability_description": "Get an extra turn",
+      "ability_effect": {
+        "type": "gain_turn"
+      },
+      "activation_condition": {
+        "when": "played"
+      },
+      "references": [
+        "game_rules.card_abilities.extra_turn"
+      ]
+    },
+    {
+      "id": "card_053",
+      "name": "Adam Bourke",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "Vought Executives",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_054",
+      "name": "Anika",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "Vought Executives",
+      "gender": "Female",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_055",
+      "name": "Evan Lambert",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "Vought Executives",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_056",
+      "name": "Seth Reed",
+      "card_type": "Human",
+      "power_level": 2,
+      "card_group": "Vought Executives",
+      "gender": "Male",
+      "ability": "",
+      "ability_description": "",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_057",
+      "name": "Web Weaver",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Stick",
+      "ability_description": "Choose 1 enemy and 1 teammate in the same zone, both who have no abilities and are of equal power to each other. They link with Webweaver and move together if Webweaver moves between zones in\ufb01nitely if space exists on both sides, otherwise none can move even via abilities. Each movement costs a turn. If one dies, all three die",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_058",
+      "name": "Ezekiel",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Preach",
+      "ability_description": "Move all enemy and teammate USELESS SUPES to Ezekiel's zone. Limit movement to the lower number between both sides' USELESS SUPES on the mat and the available space in Ezekiel's zone. For e.g., if one side has 5 on the mat and the other has 3 and Ezekiel has a space of 4, then 3 move. If Ezekiel has a space of 2, then 2 move. Both sides choose who goes.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_059",
+      "name": "Mesmer",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why See",
+      "ability_description": "Reveal 1 card to the enemy, and they reveal 1 to you - only after the enemy completes their next turn (i.e. after Mesmer is played). Play this wisely or be cocky. Your call.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_060",
+      "name": "Doppleganger",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Swap",
+      "ability_description": "Swap this card with an enemy card in their zone. The enemy card moves to your zone with 0 power. This ability cannot be used if your zone does not have space. Cards that have any abilities of their own cannot be affected.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_061",
+      "name": "Splinter 1",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Copy",
+      "ability_description": "This is one of 4 Splinter copies in the deck. You might have some or all while the enemy might have some or all. This copy cannot die at all even via Scorched Earth or Diabolicals. However once all 4 copies are placed on the mat, regardless of which side places them, all 4 copies die.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_062",
+      "name": "Splinter 2",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Copy",
+      "ability_description": "This is one of 4 Splinter copies in the deck. You might have some or all while the enemy might have some or all. This copy cannot die at all even via Scorched Earth or Diabolicals. However once all 4 copies are placed on the mat, regardless of which side places them, all 4 copies die.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_063",
+      "name": "Splinter 3",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Copy",
+      "ability_description": "This is one of 4 Splinter copies in the deck. You might have some or all while the enemy might have some or all. This copy cannot die at all even via Scorched Earth or Diabolicals. However once all 4 copies are placed on the mat, regardless of which side places them, all 4 copies die.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    },
+    {
+      "id": "card_064",
+      "name": "Splinter 4",
+      "card_type": "Supe",
+      "power_level": 0,
+      "card_group": "Why Even",
+      "gender": "N/A",
+      "ability": "Why Copy",
+      "ability_description": "This is one of 4 Splinter copies in the deck. You might have some or all while the enemy might have some or all. This copy cannot die at all even via Scorched Earth or Diabolicals. However once all 4 copies are placed on the mat, regardless of which side places them, all 4 copies die.",
+      "ability_effect": null,
+      "activation_condition": null,
+      "references": []
+    }
+  ],
+  "ui_layout": {
+    "Vought Tower": {
+      "regular_slots": [
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 0,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 170,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 340,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 510,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 0,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 170,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 340,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 510,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        }
+      ],
+      "diabolical_slot": {
+        "slot_type": "diabolical",
+        "position": {
+          "x": 256,
+          "y": 1468,
+          "width": 170,
+          "height": 153
+        }
+      },
+      "scorched_earth_area": {
+        "slot_type": "scorched_earth",
+        "position": {
+          "x": 256,
+          "y": 1631,
+          "width": 170,
+          "height": 153
+        }
+      }
+    },
+    "The Boys Hideout": {
+      "regular_slots": [
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 683,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 853,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1023,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1193,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 683,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 853,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1023,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1193,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        }
+      ],
+      "diabolical_slot": {
+        "slot_type": "diabolical",
+        "position": {
+          "x": 939,
+          "y": 1468,
+          "width": 170,
+          "height": 153
+        }
+      },
+      "scorched_earth_area": {
+        "slot_type": "scorched_earth",
+        "position": {
+          "x": 939,
+          "y": 1631,
+          "width": 170,
+          "height": 153
+        }
+      }
+    },
+    "Godolkin Campus": {
+      "regular_slots": [
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1366,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1536,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1706,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1876,
+            "y": 1152,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1366,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1536,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1706,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        },
+        {
+          "slot_type": "regular",
+          "position": {
+            "x": 1876,
+            "y": 1305,
+            "width": 170,
+            "height": 153
+          }
+        }
+      ],
+      "diabolical_slot": {
+        "slot_type": "diabolical",
+        "position": {
+          "x": 1622,
+          "y": 1468,
+          "width": 170,
+          "height": 153
+        }
+      },
+      "scorched_earth_area": {
+        "slot_type": "scorched_earth",
+        "position": {
+          "x": 1622,
+          "y": 1631,
+          "width": 170,
+          "height": 153
+        }
+      }
+    }
+  },
+  "matLayout": {
+    "zones": [
+      {
+        "x1": 64,
+        "y1": 42,
+        "x2": 1981,
+        "y2": 990
+      },
+      {
+        "x1": 703,
+        "y1": 1056,
+        "x2": 1981,
+        "y2": 2004
+      }
+    ],
+    "slots": [
+      {
+        "x1": 327,
+        "y1": 237,
+        "x2": 446,
+        "y2": 256
+      },
+      {
+        "x1": 967,
+        "y1": 237,
+        "x2": 1086,
+        "y2": 256
+      },
+      {
+        "x1": 1607,
+        "y1": 237,
+        "x2": 1726,
+        "y2": 256
+      },
+      {
+        "x1": 320,
+        "y1": 263,
+        "x2": 447,
+        "y2": 286
+      },
+      {
+        "x1": 960,
+        "y1": 263,
+        "x2": 1087,
+        "y2": 286
+      },
+      {
+        "x1": 1600,
+        "y1": 263,
+        "x2": 1727,
+        "y2": 286
+      },
+      {
+        "x1": 95,
+        "y1": 483,
+        "x2": 673,
+        "y2": 934
+      },
+      {
+        "x1": 736,
+        "y1": 483,
+        "x2": 1314,
+        "y2": 934
+      },
+      {
+        "x1": 1376,
+        "y1": 483,
+        "x2": 1955,
+        "y2": 934
+      },
+      {
+        "x1": 97,
+        "y1": 1110,
+        "x2": 676,
+        "y2": 1561
+      },
+      {
+        "x1": 732,
+        "y1": 1110,
+        "x2": 1310,
+        "y2": 1562
+      },
+      {
+        "x1": 1377,
+        "y1": 1116,
+        "x2": 1955,
+        "y2": 1567
+      },
+      {
+        "x1": 321,
+        "y1": 1761,
+        "x2": 446,
+        "y2": 1782
+      },
+      {
+        "x1": 961,
+        "y1": 1761,
+        "x2": 1086,
+        "y2": 1782
+      },
+      {
+        "x1": 1600,
+        "y1": 1761,
+        "x2": 1727,
+        "y2": 1788
+      },
+      {
+        "x1": 321,
+        "y1": 1789,
+        "x2": 445,
+        "y2": 1810
+      },
+      {
+        "x1": 961,
+        "y1": 1789,
+        "x2": 1085,
+        "y2": 1810
+      },
+      {
+        "x1": 1602,
+        "y1": 1795,
+        "x2": 1694,
+        "y2": 1810
+      }
+    ],
+    "diabolical": [
+      {
+        "x1": 307,
+        "y1": 258,
+        "x2": 462,
+        "y2": 487
+      },
+      {
+        "x1": 948,
+        "y1": 258,
+        "x2": 1102,
+        "y2": 487
+      },
+      {
+        "x1": 1589,
+        "y1": 258,
+        "x2": 1744,
+        "y2": 487
+      },
+      {
+        "x1": 308,
+        "y1": 1558,
+        "x2": 463,
+        "y2": 1787
+      },
+      {
+        "x1": 943,
+        "y1": 1558,
+        "x2": 1099,
+        "y2": 1787
+      },
+      {
+        "x1": 1588,
+        "y1": 1564,
+        "x2": 1743,
+        "y2": 1792
+      }
+    ],
+    "scorchedEarth": [
+      {
+        "x1": 97,
+        "y1": 68,
+        "x2": 277,
+        "y2": 473
+      },
+      {
+        "x1": 738,
+        "y1": 68,
+        "x2": 904,
+        "y2": 473
+      },
+      {
+        "x1": 1379,
+        "y1": 68,
+        "x2": 1539,
+        "y2": 473
+      },
+      {
+        "x1": 480,
+        "y1": 1571,
+        "x2": 673,
+        "y2": 1977
+      },
+      {
+        "x1": 1139,
+        "y1": 1571,
+        "x2": 1308,
+        "y2": 1977
+      },
+      {
+        "x1": 1782,
+        "y1": 1577,
+        "x2": 1953,
+        "y2": 1983
+      }
+    ],
+    "matImage": "https://raw.githubusercontent.com/mbpunjabi/diabolicards/main/The%20Playing%20Mat.png"
+  }
+}
