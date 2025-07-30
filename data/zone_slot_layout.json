@@ -1,0 +1,200 @@
+[
+  {
+    "zone_name": "Vought Tower",
+    "side": "left",
+    "slots": [
+      {
+        "id": "vL1"
+      },
+      {
+        "id": "vL2"
+      },
+      {
+        "id": "vL3"
+      },
+      {
+        "id": "vL4"
+      },
+      {
+        "id": "vL5"
+      },
+      {
+        "id": "vL6"
+      },
+      {
+        "id": "vL7"
+      },
+      {
+        "id": "vL8"
+      },
+      {
+        "id": "vL9"
+      }
+    ]
+  },
+  {
+    "zone_name": "Godolkin Campus",
+    "side": "left",
+    "slots": [
+      {
+        "id": "gL1"
+      },
+      {
+        "id": "gL2"
+      },
+      {
+        "id": "gL3"
+      },
+      {
+        "id": "gL4"
+      },
+      {
+        "id": "gL5"
+      },
+      {
+        "id": "gL6"
+      },
+      {
+        "id": "gL7"
+      },
+      {
+        "id": "gL8"
+      },
+      {
+        "id": "gL9"
+      }
+    ]
+  },
+  {
+    "zone_name": "The Boys Hideout",
+    "side": "left",
+    "slots": [
+      {
+        "id": "tL1"
+      },
+      {
+        "id": "tL2"
+      },
+      {
+        "id": "tL3"
+      },
+      {
+        "id": "tL4"
+      },
+      {
+        "id": "tL5"
+      },
+      {
+        "id": "tL6"
+      },
+      {
+        "id": "tL7"
+      },
+      {
+        "id": "tL8"
+      },
+      {
+        "id": "tL9"
+      }
+    ]
+  },
+  {
+    "zone_name": "Vought Tower",
+    "side": "right",
+    "slots": [
+      {
+        "id": "vR1"
+      },
+      {
+        "id": "vR2"
+      },
+      {
+        "id": "vR3"
+      },
+      {
+        "id": "vR4"
+      },
+      {
+        "id": "vR5"
+      },
+      {
+        "id": "vR6"
+      },
+      {
+        "id": "vR7"
+      },
+      {
+        "id": "vR8"
+      },
+      {
+        "id": "vR9"
+      }
+    ]
+  },
+  {
+    "zone_name": "Godolkin Campus",
+    "side": "right",
+    "slots": [
+      {
+        "id": "gR1"
+      },
+      {
+        "id": "gR2"
+      },
+      {
+        "id": "gR3"
+      },
+      {
+        "id": "gR4"
+      },
+      {
+        "id": "gR5"
+      },
+      {
+        "id": "gR6"
+      },
+      {
+        "id": "gR7"
+      },
+      {
+        "id": "gR8"
+      },
+      {
+        "id": "gR9"
+      }
+    ]
+  },
+  {
+    "zone_name": "The Boys Hideout",
+    "side": "right",
+    "slots": [
+      {
+        "id": "tR1"
+      },
+      {
+        "id": "tR2"
+      },
+      {
+        "id": "tR3"
+      },
+      {
+        "id": "tR4"
+      },
+      {
+        "id": "tR5"
+      },
+      {
+        "id": "tR6"
+      },
+      {
+        "id": "tR7"
+      },
+      {
+        "id": "tR8"
+      },
+      {
+        "id": "tR9"
+      }
+    ]
+  }
+]
