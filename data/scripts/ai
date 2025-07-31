@@ -1,0 +1,16 @@
+// ai.js
+export function aiPlayTurn(gameState) {
+  const card = gameState.opponentHand.shift();
+  if (!card) return;
+
+  const zone = Math.floor(Math.random() * 3); // Random for easy
+  gameState.board.opponent[zone].push(card);
+  if (card.ability === 'Strategy') {
+    gameState.turn = 'opponent';
+  } else {
+    gameState.turn = 'player';
+  }
+
+  const nextCard = gameState.deck.shift();
+  if (nextCard) gameState.opponentHand.push(nextCard);
+}
