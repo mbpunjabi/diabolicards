@@ -27,7 +27,7 @@ let pdfDoc = null;          // PDFDocumentProxy
 let pageImages = [];        // data URLs
 let spreadEnabled = false;  // cover → spreads (desktop only)
 let rebuilding = false;     // guard against re-entrant rebuilds
-let pageW0 = 0, pageH0 = 0; // single page pixel size (from first page)
+let pageW0 = 0, pageH0 = 0; // pixel size from first page
 let navReady = false;
 
 /* ---------- Device / Layout ---------- */
@@ -56,9 +56,7 @@ function setBusy(msg, pct){
 function clearBusyAndRemove(){
   if (!progressUI) return;
   progressUI.classList.add("hide");
-  // remove after transition
   setTimeout(() => progressUI?.remove(), 220);
-  // belt-and-suspenders
   setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200);
 }
 
@@ -77,9 +75,9 @@ async function loadPdf(src){
 
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  // Compute a scale that fits the STAGE height (fallback to viewport)
+  // Compute scale that fits the stage height (keeps aspect)
   const stage = document.querySelector(".stage");
-  const stageH = Math.max(320, (stage?.clientHeight || 0) - 16); // padding margin
+  const stageH = Math.max(320, (stage?.clientHeight || 0) - 16);
   const targetH = Math.min(1200, Math.max(560, stageH || Math.floor(window.innerHeight * 0.82)));
 
   // First page → geometry
@@ -89,7 +87,7 @@ async function loadPdf(src){
   pageW0 = Math.floor(vp1.width  * scale);
   pageH0 = Math.floor(vp1.height * scale);
 
-  // Render each page to a JPEG (sequential for memory stability)
+  // Render each page to a JPEG
   pageImages = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
@@ -103,10 +101,10 @@ async function loadPdf(src){
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  // Start in COVER (single page) mode; spreads come after first flip/nav past page 1
+  // Start in COVER (single page) mode
   buildFlipbook({ mode: "cover", startIndex: 0 });
 
-  // Build outline navigation (safe even if it fails)
+  // Build outline navigation
   await buildOutlineNav();
   navReady = true;
 
@@ -119,7 +117,18 @@ function buildFlipbook({ mode, startIndex = 0 }){
   if (rebuilding) return;
   rebuilding = true;
 
-  // Destroy existing instance
+  // Toggle container sizing: pixel size for cover, 100% for spreads
+  if (mode === "spread" && !isMobile()) {
+    document.body.classList.add("spread-mode");
+    bookEl.style.width = "100%";
+    bookEl.style.height = "100%";
+  } else {
+    document.body.classList.remove("spread-mode");
+    bookEl.style.width = `${pageW0}px`;
+    bookEl.style.height = `${pageH0}px`;
+  }
+
+  // Destroy and recreate
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
 
@@ -138,7 +147,7 @@ function buildFlipbook({ mode, startIndex = 0 }){
 
   const options =
     (mode === "cover" || isMobile())
-      ? { ...baseOpts, size: "fixed", width: pageW0, height: pageH0 }    // single page
+      ? { ...baseOpts, size: "fixed",   width: pageW0, height: pageH0 }  // single page
       : { ...baseOpts, size: "stretch", width: pageW0, height: pageH0 }; // spread-capable
 
   flip = new St.PageFlip(bookEl, options);
@@ -157,8 +166,7 @@ function buildFlipbook({ mode, startIndex = 0 }){
     // Leave cover → switch to spreads (desktop only, once)
     if (!isMobile() && mode === "cover" && idx > 0 && !spreadEnabled) {
       spreadEnabled = true;
-      rebuilding = false; // allow rebuild
-      // Rebuild as spread and preserve current index
+      rebuilding = false;           // unlock so we can rebuild immediately
       return buildFlipbook({ mode: "spread", startIndex: idx });
     }
   });
@@ -166,7 +174,6 @@ function buildFlipbook({ mode, startIndex = 0 }){
   flip.on("changeOrientation", updatePager);
 
   updatePager();
-  // unlock after first paint
   requestAnimationFrame(() => { rebuilding = false; });
 }
 
@@ -260,8 +267,7 @@ async function makeNavEntry(item, depth){
   btn.className = "nav-item " + (depth === 0 ? "nav-title" : "nav-sub");
   btn.type = "button";
   btn.textContent = (item.title || "Untitled").trim();
-
-  if (pageNumber) btn.dataset.page = String(pageNumber - 1); // 0-based for flip
+  if (pageNumber) btn.dataset.page = String(pageNumber - 1); // 0-based
 
   btn.addEventListener("click", () => {
     const idx = parseInt(btn.dataset.page, 10);
@@ -306,8 +312,6 @@ async function resolveOutlineItemToPage(item){
 }
 
 /* ---------- Nav Highlighting ---------- */
-/* Works for spreads: match current left page OR right page,
-   otherwise pick the closest earlier section. Also sets aria-current. */
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
 
