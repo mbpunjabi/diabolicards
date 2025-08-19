@@ -8,6 +8,7 @@
   --sidebar-w: 300px;
   --toolbar-h: 64px;
   --avail-h: 72vh;
+  --mobile-nav-h: 56px;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -42,7 +43,7 @@ body{
   box-shadow:0 12px 32px var(--shadow);
   padding:10px;
   overflow:auto;
-  max-height: calc(var(--avail-h));
+  max-height: var(--avail-h);
 }
 
 .nav-head{font-family:"Bebas Neue",system-ui,sans-serif;font-size:22px;letter-spacing:.06em;color:#b7cdf0;margin:4px 6px 10px;user-select:none}
@@ -69,6 +70,15 @@ body{
 
 #book{ width:auto; height:auto; }
 
+/* Make PageFlip layers transparent so the blank page shows the site bg */
+#book .page,
+#book .page__content,
+#book .stf__page,
+#book .stf__canvas,
+#book .stf__item {
+  background: transparent !important;
+}
+
 .counter{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d141d;border:1px solid #1b2330}
 .progress-wrap{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;pointer-events:none;transition:opacity .2s ease}
 .progress-wrap.hide{opacity:0}
@@ -77,5 +87,48 @@ body{
 .status{font:12px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;color:var(--muted);text-shadow:0 2px 0 rgba(0,0,0,.3)}
 .tip{opacity:.9}
 
+/* Mobile layout overrides */
 body.is-mobile{ --sidebar-w: 100%; }
 body.is-mobile .layout{ grid-template-columns: 1fr; }
+body.is-mobile .sidebar{ display: none; }
+
+/* Bottom horizontal contents strip (mobile) */
+.nav-strip{
+  display:none;
+}
+body.is-mobile .nav-strip{
+  display:block;
+  position:sticky;
+  bottom:0;
+  left:0; right:0;
+  overflow-x:auto;
+  -webkit-overflow-scrolling:touch;
+  background:linear-gradient(180deg,#0e141d,#0a1018);
+  border:1px solid #1b2330;
+  border-radius:12px;
+  box-shadow:0 10px 24px var(--shadow);
+  padding:8px;
+  margin-top:8px;
+  white-space:nowrap;
+}
+.nav-chip{
+  display:inline-flex;
+  align-items:center;
+  padding:8px 12px;
+  margin-right:8px;
+  border-radius:999px;
+  border:1px solid #27364a;
+  background:#111826;
+  color:var(--text);
+  font-family:"Bebas Neue",system-ui,sans-serif;
+  font-size:16px;
+  letter-spacing:.02em;
+  cursor:pointer;
+  user-select:none;
+}
+.nav-chip.active{ background:#0f1b2a; border-color:#274567; }
+
+body.is-mobile .stage{
+  /* Reserve space for the bottom strip */
+  height: calc(var(--avail-h) - var(--mobile-nav-h));
+}
