@@ -1,11 +1,7 @@
 /* ---------- Config ---------- */
 
-// Your bookmarked PDF (put it in assets/)
-const PDF_URLS = [
-  "assets/the-guide-bookmarks.pdf", // preferred (with ToC)
-  "assets/the-guide.pdf",
-  "the-guide.pdf"
-];
+// Lock to the single, bookmarked PDF:
+const PDF_URL = "assets/the-guide-bookmarks.pdf";
 
 // PDF.js worker
 if (window.pdfjsLib) {
@@ -26,18 +22,17 @@ const navList     = document.getElementById("navList");
 const sidebar     = document.getElementById("sidebar");
 const navToggle   = document.getElementById("navToggle");
 
-let flip = null;       // StPageFlip instance
-let pdfDoc = null;     // PDFDocumentProxy
-let pageImages = [];   // array of data URLs
-let spreadEnabled = false; // track when we switch to spreads (desktop only)
+let flip = null;           // StPageFlip instance
+let pdfDoc = null;         // PDFDocumentProxy
+let pageImages = [];       // array of data URLs
+let spreadEnabled = false; // after cover → spreads (desktop only)
+let pageAspect = 1;        // width / height of a single page
 
 /* ---------- Device / Layout ---------- */
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 }
-
-// set mobile class early
 if (isMobile()) document.body.classList.add("is-mobile");
 
 // mobile nav toggle
@@ -51,6 +46,7 @@ if (navToggle) {
 /* ---------- Busy UI ---------- */
 
 function setBusy(msg, pct){
+  if (!progressUI) return;
   progressUI.hidden = false;
   statusText.textContent = msg || "Working…";
   if (typeof pct === "number") {
@@ -58,28 +54,18 @@ function setBusy(msg, pct){
   }
 }
 function clearBusyAndRemove(){
-  // fade then remove the progress UI entirely
+  if (!progressUI) return;
   progressUI.classList.add("hide");
-  setTimeout(() => {
-    progressUI.remove();
-  }, 220);
+  setTimeout(() => progressUI.remove(), 220);
 }
 
 /* ---------- Boot ---------- */
 
 (async function init(){
-  await loadFirstAvailable(PDF_URLS);
+  await loadPdf(PDF_URL);
   bindControls();
   window.addEventListener("resize", handleResize, { passive: true });
 })();
-
-async function loadFirstAvailable(urls){
-  for (const u of urls){
-    try { await loadPdf(u); return; }
-    catch (e) { /* try next path */ }
-  }
-  statusText.textContent = "PDF not found at expected paths.";
-}
 
 /* ---------- PDF Loading & Rendering ---------- */
 
@@ -90,13 +76,14 @@ async function loadPdf(src){
 
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  // first page → size/ratio
+  // first page → ratio (to keep correct aspect)
   const first = await pdfDoc.getPage(1);
+  const vp1   = first.getViewport({ scale: 1 });
+  pageAspect  = vp1.width / vp1.height;
 
-  // Height-driven scaling guarantees single cover layout
-  const viewport1 = first.getViewport({ scale: 1 });
-  const baseTargetH = Math.min(1200, Math.max(560, Math.floor(window.innerHeight * 0.82)));
-  const scale = baseTargetH / viewport1.height;
+  // Height-driven scaling (no distortion), but we NEVER force CSS height:100%
+  const targetH = Math.min(1200, Math.max(560, Math.floor(window.innerHeight * 0.82)));
+  const scale   = targetH / vp1.height;
 
   // Render pages sequentially to data URLs
   pageImages = [];
@@ -114,8 +101,10 @@ async function loadPdf(src){
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  // Build flipbook in "COVER" mode (single page) first
-  buildFlipbook({ mode: "cover", baseW: Math.floor(viewport1.width * scale), baseH: Math.floor(viewport1.height * scale) });
+  // Build flipbook in COVER (single page) mode
+  const baseW = Math.floor(vp1.width  * scale);
+  const baseH = Math.floor(vp1.height * scale);
+  buildFlipbook({ mode: "cover", pageW: baseW, pageH: baseH });
 
   // Build outline-based navigation (sidebar)
   await buildOutlineNav();
@@ -126,7 +115,7 @@ async function loadPdf(src){
 
 /* ---------- Flipbook Builders ---------- */
 
-function buildFlipbook({ mode, baseW, baseH, startIndex = 0 }){
+function buildFlipbook({ mode, pageW, pageH, startIndex = 0 }){
   // Destroy existing instance
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
@@ -144,20 +133,19 @@ function buildFlipbook({ mode, baseW, baseH, startIndex = 0 }){
     usePortrait: true
   };
 
-  // Mode “cover” → force single page; Mode “spread” → responsive, allows spreads on wide screens.
-  let options;
-  if (mode === "cover" || isMobile()) {
-    options = { ...optsBase, size: "fixed", width: baseW, height: baseH };
-  } else {
-    options = { ...optsBase, size: "stretch", width: baseW, height: baseH };
-  }
+  // Keep the plugin's own pixel size (no CSS stretching)
+  // COVER: always single page
+  // SPREAD: allow spreads on wide screens; plugin handles it.
+  const options =
+    (mode === "cover" || isMobile())
+      ? { ...optsBase, size: "fixed", width: pageW, height: pageH }
+      : { ...optsBase, size: "stretch", width: pageW, height: pageH };
 
   flip = new St.PageFlip(bookEl, options);
   flip.loadFromImages(pageImages);
 
-  // go to requested page (after rebuild)
+  // go to requested page after rebuild
   if (startIndex) {
-    // clamp
     const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
     try { flip.turnToPage(ix); } catch(e){}
   }
@@ -168,11 +156,10 @@ function buildFlipbook({ mode, baseW, baseH, startIndex = 0 }){
     updatePager();
     highlightActiveInNav(idx);
 
-    // As soon as we leave the cover on desktop, switch to spreads once.
-    if (!isMobile() && !spreadEnabled && idx > 0) {
+    // On desktop, as soon as we leave the cover, rebuild in SPREAD mode (once)
+    if (!isMobile() && mode === "cover" && idx > 0 && !spreadEnabled) {
       spreadEnabled = true;
-      // rebuild as “spread” and keep the same page index
-      buildFlipbook({ mode: "spread", baseW, baseH, startIndex: idx });
+      buildFlipbook({ mode: "spread", pageW, pageH, startIndex: idx });
     }
   });
 
@@ -195,7 +182,7 @@ function bindControls(){
 
 function updatePager(){
   if (!flip) return;
-  const idx   = flip.getCurrentPageIndex(); // 0-based
+  const idx   = flip.getCurrentPageIndex(); // 0-based (mostly left page in spreads)
   const total = flip.getPageCount();
   pageNow.textContent   = String(idx + 1);
   pageTotal.textContent = String(total);
@@ -255,6 +242,7 @@ async function makeNavEntry(item, depth){
         sidebar.classList.remove("open");
         navToggle.setAttribute("aria-expanded", "false");
       }
+      highlightActiveInNav(idx);
     }
   });
 
@@ -274,26 +262,19 @@ async function resolveOutlineItemToPage(item){
     if (!item) return null;
     let dest = item.dest;
 
-    // Named destination? resolve first
     if (typeof dest === "string") {
       dest = await pdfDoc.getDestination(dest);
     }
-
-    // Direct array destination: first element is a page ref
     if (Array.isArray(dest) && dest[0]) {
       const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
       return pageIndex + 1;
     }
-
-    // Some PDFs put page in the outline URL, e.g., "#page=12"
     if (typeof item.url === "string") {
       const m = item.url.match(/[#?]page=(\d+)/i);
       if (m) return parseInt(m[1], 10);
     }
-  } catch (e) {
-    // ignore and fall through
-  }
+  } catch (e) {}
   return null;
 }
 
@@ -308,9 +289,37 @@ function turnTo(idx){
   }
 }
 
+/* Highlight the active item.
+   In spreads, the current index usually refers to the LEFT page.
+   We consider either the left page (idx) OR the right page (idx+1) a match.
+   If neither matches exactly, we highlight the nearest previous section. */
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
+
+  // Clear previous
   navList.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
-  const current = navList.querySelector(`.nav-item[data-page="${currentIdx}"]`);
-  if (current) current.classList.add("active");
+
+  // Try exact matches for left or right page of the spread
+  let el =
+    navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) ||
+    navList.querySelector(`.nav-item[data-page="${currentIdx+1}"]`);
+
+  // Otherwise choose the last section whose page <= right page
+  if (!el) {
+    const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
+      .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
+      .filter(x => Number.isFinite(x.p) && x.p <= currentIdx + 1)
+      .sort((a,b) => b.p - a.p);
+    el = candidates.length ? candidates[0].n : null;
+  }
+
+  if (el) {
+    el.classList.add("active");
+    // Optional: keep it in view
+    const rect = el.getBoundingClientRect();
+    const srect = sidebar.getBoundingClientRect();
+    if (rect.top < srect.top || rect.bottom > srect.bottom) {
+      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }
 }
