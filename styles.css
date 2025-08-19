@@ -100,10 +100,7 @@ body{
   user-select: none;
 }
 
-.nav-list{
-  display: grid;
-  gap: 6px;
-}
+.nav-list{ display: grid; gap: 6px; }
 
 .nav-item{
   display: block;
@@ -119,6 +116,7 @@ body{
   outline: none;
 }
 .nav-item:hover{ background: #111a26; border-color:#203044; }
+.nav-item[aria-current="page"],
 .nav-item.active{ background: #0f1b2a; border-color: #274567; }
 
 .nav-title{
@@ -171,12 +169,8 @@ body{
 .tip{opacity:.9}
 
 /* ---- Mobile Mode ---- */
-body.is-mobile{
-  --sidebar-w: 100%;
-}
-
+body.is-mobile{ --sidebar-w: 100%; }
 body.is-mobile .layout{ grid-template-columns: 1fr; }
-
 body.is-mobile .sidebar{
   order: -1;
   max-height: 0;
@@ -187,11 +181,9 @@ body.is-mobile .sidebar{
   background: rgba(14,19,28,.86);
   backdrop-filter: blur(4px);
 }
-
 body.is-mobile .sidebar.open{
   max-height: 60vh; /* slide-down */
   padding: 10px;
   border-color: #1b2330;
 }
-
 body.is-mobile #navToggle{ display: inline-flex; }
