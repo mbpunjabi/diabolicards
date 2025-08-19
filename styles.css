@@ -145,17 +145,12 @@ body{
   border:1px solid #1b2330;
   box-shadow:0 30px 60px var(--shadow);
   overflow:hidden;
-
-  /* Center the book; let the JS-set pixel size define its aspect. */
-  display:flex;
-  align-items:center;
-  justify-content:center;
+  display:flex; align-items:center; justify-content:center; /* center the book */
   padding: 8px;
 }
 
-/* IMPORTANT: don't force the book to fill the stage.
-   This preserves the PDF page aspect ratio. */
-#book{ width:auto; height:auto; }
+/* keep PDF aspect; plugin sets pixel size */
+#book{ width:auto !important; height:auto !important; }
 
 /* ---- Pager / Status ---- */
 .counter{
@@ -180,9 +175,7 @@ body.is-mobile{
   --sidebar-w: 100%;
 }
 
-body.is-mobile .layout{
-  grid-template-columns: 1fr;
-}
+body.is-mobile .layout{ grid-template-columns: 1fr; }
 
 body.is-mobile .sidebar{
   order: -1;
