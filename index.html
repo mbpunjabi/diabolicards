@@ -4,67 +4,38 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>THE GUIDE</title>
-
-  <!-- Bebas Neue (titles + nav) -->
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
-
-  <!-- PageFlip CSS -->
-  <link rel="preconnect" href="https://cdn.jsdelivr.net">
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.css" />
-
-  <!-- App styles -->
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <!-- Background image overlay -->
   <div class="bg-overlay" aria-hidden="true"></div>
-
   <div class="shell">
-    <!-- Toolbar -->
     <header class="toolbar">
       <h1 class="brand" title="THE GUIDE">THE GUIDE</h1>
-
-      <!-- Mobile nav toggle -->
-      <button id="navToggle" class="btn btn-ghost" type="button"
-              aria-expanded="false" aria-controls="sidebar" aria-label="Toggle contents">
-        Contents
-      </button>
-
+      <button id="navToggle" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Toggle contents">Contents</button>
       <div class="spacer" aria-hidden="true"></div>
-
       <button id="prev" class="btn" type="button" aria-label="Previous page">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         Prev
       </button>
-
       <div class="counter" aria-live="polite" aria-atomic="true">
         <span id="pageNow">0</span> / <span id="pageTotal">0</span>
       </div>
-
       <button id="next" class="btn" type="button" aria-label="Next page">
         Next
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
       </button>
     </header>
 
-    <!-- Layout: sidebar (left) + stage (right) -->
     <div class="layout">
-      <!-- Outline navigation -->
       <aside id="sidebar" class="sidebar" role="navigation" aria-label="Contents">
         <div class="nav-head">CONTENTS</div>
-        <nav id="navList" class="nav-list" role="tree" aria-label="Chapters">
-          <!-- populated by JS from PDF bookmarks -->
-        </nav>
+        <nav id="navList" class="nav-list" role="tree" aria-label="Chapters"></nav>
       </aside>
 
-      <!-- Flipbook stage -->
       <main class="stage" aria-label="Flipbook">
         <div id="book" tabindex="0"></div>
-
-        <!-- Progress UI (auto-removed after load) -->
         <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-live="off">
             <span id="progressBar"></span>
@@ -77,11 +48,8 @@
     <p class="status tip">Tip: use ←/→ or tap corners. First page is a <em>cover</em>.</p>
   </div>
 
-  <!-- StPageFlip runtime -->
   <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js" defer></script>
-  <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
-  <!-- App -->
   <script src="app.js" defer></script>
 </body>
 </html>
