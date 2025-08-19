@@ -7,7 +7,7 @@
   --shadow:rgba(0,0,0,.45);
   --radius:16px;
 
-  --sidebar-w: 280px;
+  --sidebar-w: 300px;
 }
 
 *{box-sizing:border-box}
@@ -27,7 +27,7 @@ body{
 
 .shell{
   position: relative; z-index: 1;
-  max-width: min(1400px, 96vw);
+  max-width: min(1440px, 96vw);
   margin: 2rem auto;
   display: grid;
   gap: 12px;
@@ -81,7 +81,7 @@ body{
   min-height: clamp(520px, 72vh, 86vh);
 }
 
-/* ---- Sidebar (left) ---- */
+/* ---- Sidebar ---- */
 .sidebar{
   border-radius: var(--radius);
   background: linear-gradient(180deg, #0f141d, #0b1017);
@@ -107,6 +107,8 @@ body{
 
 .nav-item{
   display: block;
+  width: 100%;
+  text-align: left;
   padding: 8px 10px;
   border-radius: 10px;
   border: 1px solid transparent;
@@ -132,7 +134,7 @@ body{
   font-family:"Bebas Neue", system-ui, sans-serif;
   font-size: 16px;
   letter-spacing:.02em;
-  opacity: .9;
+  opacity: .92;
 }
 
 /* ---- Stage / Book ---- */
@@ -159,7 +161,9 @@ body{
 .progress-wrap{
   position:absolute; inset:auto 14px 14px 14px;
   display:grid; gap:8px; pointer-events:none;
+  transition: opacity .2s ease;
 }
+.progress-wrap.hide{ opacity:0; }
 .progress{height:6px;background:#0f1621;border-radius:999px;overflow:hidden;border:1px solid #203045}
 .progress span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#1f9df0,#5ce1e6)}
 .status{font:12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;color:var(--muted);text-shadow:0 2px 0 rgba(0,0,0,.3)}
@@ -181,12 +185,12 @@ body.is-mobile .sidebar{
   overflow: hidden;
   transition: max-height .25s ease, padding .25s ease;
   border-color: transparent;
-  background: rgba(14,19,28,.82);
+  background: rgba(14,19,28,.86);
   backdrop-filter: blur(4px);
 }
 
 body.is-mobile .sidebar.open{
-  max-height: 60vh; /* slide-down panel */
+  max-height: 60vh; /* slide-down */
   padding: 10px;
   border-color: #1b2330;
 }
