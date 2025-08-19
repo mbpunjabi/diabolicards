@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>THE GUIDE</title>
 
-  <!-- UI font for controls -->
-  <link href="https://db.onlinewebfonts.com/c/24494d9d3ecae2ab25324d8348e8e54a?family=Komika+Slick" rel="stylesheet" />
+  <!-- Bebas Neue (titles + nav) -->
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
 
   <!-- PageFlip CSS -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.css" />
@@ -15,11 +15,18 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
+  <!-- Background image overlay -->
   <div class="bg-overlay"></div>
 
-  <div class="shell" role="region" aria-label="Flipbook viewer">
-    <div class="toolbar">
+  <div class="shell">
+    <!-- Toolbar -->
+    <header class="toolbar">
       <h1 class="brand" title="THE GUIDE">THE GUIDE</h1>
+
+      <!-- Mobile nav toggle -->
+      <button id="navToggle" class="btn btn-ghost" aria-expanded="false" aria-controls="sidebar">
+        Contents
+      </button>
 
       <div class="spacer"></div>
 
@@ -36,18 +43,30 @@
         Next
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
       </button>
+    </header>
+
+    <!-- Layout: sidebar (left) + stage (right) -->
+    <div class="layout">
+      <!-- Outline navigation -->
+      <aside id="sidebar" class="sidebar" aria-label="Contents navigation">
+        <div class="nav-head">CONTENTS</div>
+        <nav id="navList" class="nav-list" role="tree">
+          <!-- populated by JS from PDF bookmarks -->
+        </nav>
+      </aside>
+
+      <!-- Flipbook stage -->
+      <main class="stage">
+        <div id="book" tabindex="0" aria-label="Flipbook area"></div>
+
+        <div class="progress-wrap" id="progressWrap" hidden>
+          <div class="progress"><span id="progressBar"></span></div>
+          <div class="status" id="status">Ready</div>
+        </div>
+      </main>
     </div>
 
-    <main class="stage">
-      <div id="book" tabindex="0" aria-label="Flipbook area"></div>
-
-      <div class="progress-wrap" id="progressWrap" hidden>
-        <div class="progress"><span id="progressBar"></span></div>
-        <div class="status" id="status">Ready</div>
-      </div>
-    </main>
-
-    <p class="status tip">Tip: use ←/→ or click the page corners. First page is a <em>cover</em>.</p>
+    <p class="status tip">Tip: use ←/→ or tap corners. First page is a <em>cover</em>.</p>
   </div>
 
   <!-- StPageFlip runtime -->
