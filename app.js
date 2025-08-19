@@ -18,6 +18,7 @@ let pdfDoc = null;
 let pageImages = [];
 let baseW = 0, baseH = 0;
 let resizeToken = 0;
+let pdfPageCount = 0;
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -42,10 +43,14 @@ function clearBusyAndRemove(){
 function updateEnvVars(){
   const h = toolbar?.offsetHeight || 64;
   document.documentElement.style.setProperty("--toolbar-h", `${h}px`);
-  const avail = Math.max(320, window.innerHeight - h - 48);
+  const avail = Math.max(360, Math.floor(window.innerHeight - h - 48));
   document.documentElement.style.setProperty("--avail-h", `${avail}px`);
 }
 function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
+function safeRect(el){
+  const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
+  return { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
+}
 
 (async function init(){
   updateEnvVars();
@@ -66,18 +71,22 @@ async function loadPdf(src){
   setBusy("Loading PDF…", 3);
   const task = pdfjsLib.getDocument({ url: src });
   pdfDoc = await task.promise;
-  pageTotal.textContent = String(pdfDoc.numPages);
+  pdfPageCount = pdfDoc.numPages;
+  pageTotal.textContent = String(pdfPageCount);
 
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
-  const targetH = Math.max(320, window.innerHeight - (toolbar?.offsetHeight || 64) - 48);
+  const targetH = Math.max(360, parseInt(getComputedStyle(document.documentElement).getPropertyValue("--avail-h")) || (window.innerHeight - 120));
   const scale = targetH / vp1.height;
   baseW = Math.floor(vp1.width * scale);
   baseH = Math.floor(vp1.height * scale);
 
   pageImages = [];
+  const blank = document.createElement("canvas");
+  blank.width = baseW; blank.height = baseH;
+  pageImages.push(blank.toDataURL("image/png"));
   for (let i = 1; i <= pdfDoc.numPages; i++) {
-    setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
+    setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, (i / pdfDoc.numPages) * 100);
     const page = i === 1 ? first : await pdfDoc.getPage(i);
     const vp = page.getViewport({ scale });
     const canvas = document.createElement("canvas");
@@ -88,31 +97,26 @@ async function loadPdf(src){
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  buildFlipbook(0);
+  buildFlipbook(1);
   await buildOutlineNav();
   clearBusyAndRemove();
 }
 
-function safeRect(el){
-  const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
-  return { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
-}
 function computePageSize(pagesAcross){
   const r = safeRect(document.querySelector(".stage"));
   const maxW = Math.max(320, r.w - 16);
-  const maxH = Math.max(320, Math.min(parseInt(getComputedStyle(document.documentElement).getPropertyValue("--avail-h")) || r.h, r.h || 1));
+  const maxH = Math.max(320, r.h - 16);
   const s1 = maxH / baseH;
   const s2 = maxW / (pagesAcross * baseW);
   const s = Math.min(s1, s2, 1.0);
-  const w = Math.max(200, Math.floor(baseW * s));
-  const h = Math.max(200, Math.floor(baseH * s));
-  return (w < 220 || h < 220) ? null : { w, h };
+  const w = Math.max(260, Math.floor(baseW * s));
+  const h = Math.max(260, Math.floor(baseH * s));
+  return (w < 260 || h < 260) ? null : { w, h };
 }
 
 function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
-    const desktopSpread = !isMobile();
-    const pagesAcross = desktopSpread ? 2 : 1;
+    const pagesAcross = isMobile() ? 1 : 2;
     const sz = computePageSize(pagesAcross);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
@@ -121,9 +125,9 @@ function buildFlipbook(startIndex){
 
     const opts = {
       minWidth: 320,
-      maxWidth: 2400,
+      maxWidth: 2600,
       minHeight: 420,
-      maxHeight: 3200,
+      maxHeight: 3400,
       maxShadowOpacity: 0.22,
       drawShadow: true,
       flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
@@ -178,11 +182,11 @@ function goTo(idx){
 function updatePager(){
   if (!flip) return;
   const idx = flip.getCurrentPageIndex();
-  const total = flip.getPageCount();
-  pageNow.textContent = String(idx + 1);
-  pageTotal.textContent = String(total);
+  const logical = Math.max(1, idx);
+  pageNow.textContent = String(logical);
+  pageTotal.textContent = String(pdfPageCount);
   prevBtn.disabled = idx <= 0;
-  nextBtn.disabled = idx >= total - 1;
+  nextBtn.disabled = idx >= (flip.getPageCount() - 1);
 }
 
 function handleResize(){
@@ -220,7 +224,7 @@ async function makeNavEntry(item, depth){
   btn.className = "nav-item " + (depth === 0 ? "nav-title" : "nav-sub");
   btn.type = "button";
   btn.textContent = (item.title || "Untitled").trim();
-  if (pageNumber) btn.dataset.page = String(pageNumber - 1);
+  if (pageNumber) btn.dataset.page = String(pageNumber);
   btn.addEventListener("click", () => {
     const idx = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(idx)) {
@@ -258,17 +262,18 @@ async function resolveOutlineItemToPage(item){
 
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
+  const logical = Math.max(1, currentIdx);
   navList.querySelectorAll(".nav-item").forEach(el => {
     el.classList.remove("active");
     el.removeAttribute("aria-current");
   });
   let el =
-    navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) ||
-    navList.querySelector(`.nav-item[data-page="${currentIdx+1}"]`);
+    navList.querySelector(`.nav-item[data-page="${logical}"]`) ||
+    navList.querySelector(`.nav-item[data-page="${logical+1}"]`);
   if (!el) {
     const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
       .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
-      .filter(x => Number.isFinite(x.p) && x.p <= currentIdx + 1)
+      .filter(x => Number.isFinite(x.p) && x.p <= logical + 1)
       .sort((a,b) => b.p - a.p);
     el = candidates[0]?.n ?? null;
   }
