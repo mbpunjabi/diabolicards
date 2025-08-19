@@ -18,7 +18,7 @@ let pdfDoc = null;
 let pageImages = [];
 let spreadEnabled = false;
 let rebuilding = false;
-let pageW0 = 0, pageH0 = 0;
+let baseW = 0, baseH = 0;
 let navReady = false;
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -61,8 +61,8 @@ async function loadPdf(src){
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
   const scale = targetH / vp1.height;
-  pageW0 = Math.floor(vp1.width * scale);
-  pageH0 = Math.floor(vp1.height * scale);
+  baseW = Math.floor(vp1.width * scale);
+  baseH = Math.floor(vp1.height * scale);
   pageImages = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
@@ -80,23 +80,25 @@ async function loadPdf(src){
   navReady = true;
   clearBusyAndRemove();
 }
+function computePageSize(mode){
+  const stage = document.querySelector(".stage");
+  const maxW = Math.max(320, (stage?.clientWidth || window.innerWidth) - 16);
+  const maxH = Math.max(320, (stage?.clientHeight || Math.floor(window.innerHeight * 0.82)) - 16);
+  const pagesAcross = (!isMobile() && mode === "spread") ? 2 : 1;
+  const s1 = maxH / baseH;
+  const s2 = maxW / (pagesAcross * baseW);
+  const s = Math.min(s1, s2, 1.0);
+  return { w: Math.max(200, Math.floor(baseW * s)), h: Math.max(200, Math.floor(baseH * s)) };
+}
 function buildFlipbook({ mode, startIndex = 0 }){
   if (rebuilding) return;
   rebuilding = true;
-  if (mode === "spread" && !isMobile()) {
-    document.body.classList.add("spread-mode");
-    bookEl.style.width = "100%";
-    bookEl.style.height = "100%";
-  } else {
-    document.body.classList.remove("spread-mode");
-    bookEl.style.width = `${pageW0}px`;
-    bookEl.style.height = `${pageH0}px`;
-  }
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
-  const baseOpts = {
+  const sz = computePageSize(mode);
+  const opts = {
     minWidth: 320,
-    maxWidth: 2200,
+    maxWidth: 2400,
     minHeight: 420,
     maxHeight: 3200,
     maxShadowOpacity: 0.22,
@@ -104,10 +106,12 @@ function buildFlipbook({ mode, startIndex = 0 }){
     flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
     showCover: true,
     mobileScrollSupport: true,
-    usePortrait: true
+    usePortrait: true,
+    size: "fixed",
+    width: sz.w,
+    height: sz.h
   };
-  const options = (mode === "cover" || isMobile()) ? { ...baseOpts, size: "fixed", width: pageW0, height: pageH0 } : { ...baseOpts, size: "stretch", width: pageW0, height: pageH0 };
-  flip = new St.PageFlip(bookEl, options);
+  flip = new St.PageFlip(bookEl, opts);
   flip.loadFromImages(pageImages);
   const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
   try { flip.turnToPage(ix); } catch(e){}
@@ -186,7 +190,11 @@ function updatePager(){
 }
 function handleResize(){
   if (!flip) return;
-  try { flip.update(); } catch(e){}
+  try {
+    const idx = flip.getCurrentPageIndex();
+    const mode = !isMobile() && spreadEnabled ? "spread" : "cover";
+    buildFlipbook({ mode, startIndex: idx });
+  } catch(e){}
 }
 async function buildOutlineNav(){
   try {
@@ -207,7 +215,6 @@ async function buildOutlineNav(){
     navList.appendChild(frag);
   } catch (err) {
     navList.innerHTML = "<div class='status'>Contents unavailable.</div>";
-    console.warn("Outline parse failed:", err);
   }
 }
 async function makeNavEntry(item, depth){
