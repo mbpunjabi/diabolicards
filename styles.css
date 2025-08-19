@@ -145,11 +145,17 @@ body{
   border:1px solid #1b2330;
   box-shadow:0 30px 60px var(--shadow);
   overflow:hidden;
-  display:grid; place-items:center;
-  isolation:isolate;
+
+  /* Center the book; let the JS-set pixel size define its aspect. */
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding: 8px;
 }
 
-#book{ width:100%; height:100%; }
+/* IMPORTANT: don't force the book to fill the stage.
+   This preserves the PDF page aspect ratio. */
+#book{ width:auto; height:auto; }
 
 /* ---- Pager / Status ---- */
 .counter{
@@ -159,7 +165,7 @@ body{
 }
 
 .progress-wrap{
-  position:absolute; inset:auto 14px 14px 14px;
+  position:absolute; left:14px; right:14px; bottom:14px;
   display:grid; gap:8px; pointer-events:none;
   transition: opacity .2s ease;
 }
