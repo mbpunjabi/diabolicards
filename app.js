@@ -11,8 +11,10 @@ const progressUI = document.getElementById("progressWrap");
 const progressBar = document.getElementById("progressBar");
 const statusText = document.getElementById("status");
 const navList = document.getElementById("navList");
+const navStrip = document.getElementById("navStrip");
 const sidebar = document.getElementById("sidebar");
 const toolbar = document.querySelector(".toolbar");
+
 let flip = null;
 let pdfDoc = null;
 let pageImages = [];
@@ -46,6 +48,11 @@ function updateEnvVars(){
   const avail = Math.max(360, Math.floor(window.innerHeight - h - 48));
   document.documentElement.style.setProperty("--avail-h", `${avail}px`);
 }
+function updateMobileNavHeight(){
+  if (!document.body.classList.contains("is-mobile")) return;
+  const h = navStrip?.offsetHeight || 0;
+  document.documentElement.style.setProperty("--mobile-nav-h", `${Math.max(40, h)}px`);
+}
 function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
 function safeRect(el){
   const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
@@ -76,19 +83,30 @@ async function loadPdf(src){
 
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
+
   const targetH = Math.max(360, parseInt(getComputedStyle(document.documentElement).getPropertyValue("--avail-h")) || (window.innerHeight - 120));
-  const scale = targetH / vp1.height;
-  baseW = Math.floor(vp1.width * scale);
-  baseH = Math.floor(vp1.height * scale);
+  const displayScale = targetH / vp1.height;
+
+  // Boost rendering scale on mobile for legibility (HiDPI-aware, clamped for memory)
+  const dpr = Math.min(window.devicePixelRatio || 1, 3);
+  const qualityBoost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
+  const renderScale = displayScale * qualityBoost;
+
+  baseW = Math.floor(vp1.width * displayScale);
+  baseH = Math.floor(vp1.height * displayScale);
 
   pageImages = [];
+
+  // Transparent first page so background shows through on the left of first spread
   const blank = document.createElement("canvas");
-  blank.width = baseW; blank.height = baseH;
+  blank.width = Math.floor(vp1.width * displayScale);
+  blank.height = Math.floor(vp1.height * displayScale);
   pageImages.push(blank.toDataURL("image/png"));
+
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, (i / pdfDoc.numPages) * 100);
     const page = i === 1 ? first : await pdfDoc.getPage(i);
-    const vp = page.getViewport({ scale });
+    const vp = page.getViewport({ scale: renderScale });
     const canvas = document.createElement("canvas");
     const ctx = canvas.getContext("2d");
     canvas.width = Math.floor(vp.width);
@@ -100,6 +118,7 @@ async function loadPdf(src){
   buildFlipbook(1);
   await buildOutlineNav();
   clearBusyAndRemove();
+  updateMobileNavHeight();
 }
 
 function computePageSize(pagesAcross){
@@ -192,13 +211,22 @@ function updatePager(){
 function handleResize(){
   updateEnvVars();
   const id = ++resizeToken;
-  setTimeout(() => { if (id === resizeToken && flip) buildFlipbook(flip.getCurrentPageIndex()); }, 140);
+  setTimeout(() => {
+    if (id === resizeToken && flip) {
+      buildFlipbook(flip.getCurrentPageIndex());
+      updateMobileNavHeight();
+    }
+  }, 140);
 }
+
+/* ----- Outline / Navigation ----- */
 
 async function buildOutlineNav(){
   try {
     const outline = await pdfDoc.getOutline();
     navList.innerHTML = "";
+    navStrip.innerHTML = "";
+
     if (!outline || !outline.length) {
       const empty = document.createElement("div");
       empty.className = "status";
@@ -206,12 +234,31 @@ async function buildOutlineNav(){
       navList.appendChild(empty);
       return;
     }
+
     const frag = document.createDocumentFragment();
     for (const item of outline) {
       const el = await makeNavEntry(item, 0);
       if (el) frag.appendChild(el);
     }
     navList.appendChild(frag);
+
+    const flat = await flattenOutline(outline);
+    for (const it of flat) {
+      if (!Number.isFinite(it.page)) continue;
+      const chip = document.createElement("button");
+      chip.className = "nav-chip";
+      chip.type = "button";
+      chip.textContent = it.title;
+      chip.dataset.page = String(it.page);
+      chip.addEventListener("click", () => {
+        const idx = parseInt(chip.dataset.page, 10);
+        if (Number.isFinite(idx)) {
+          goTo(idx);
+          highlightActiveInNav(idx);
+        }
+      });
+      navStrip.appendChild(chip);
+    }
   } catch (err) {
     navList.innerHTML = "<div class='status'>Contents unavailable.</div>";
   }
@@ -242,6 +289,16 @@ async function makeNavEntry(item, depth){
   return wrap;
 }
 
+async function flattenOutline(items, depth = 0, acc = []){
+  for (const it of items) {
+    const page = await resolveOutlineItemToPage(it);
+    const title = (it.title || "Untitled").trim();
+    if (page) acc.push({ title, page });
+    if (it.items && it.items.length) await flattenOutline(it.items, depth + 1, acc);
+  }
+  return acc;
+}
+
 async function resolveOutlineItemToPage(item){
   try {
     if (!item) return null;
@@ -250,6 +307,7 @@ async function resolveOutlineItemToPage(item){
     if (Array.isArray(dest) && dest[0]) {
       const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
+      // We inserted a blank at index 0, so logical page == pdf page number
       return pageIndex + 1;
     }
     if (typeof item.url === "string") {
@@ -261,29 +319,39 @@ async function resolveOutlineItemToPage(item){
 }
 
 function highlightActiveInNav(currentIdx){
-  if (!navList) return;
   const logical = Math.max(1, currentIdx);
-  navList.querySelectorAll(".nav-item").forEach(el => {
-    el.classList.remove("active");
-    el.removeAttribute("aria-current");
-  });
-  let el =
-    navList.querySelector(`.nav-item[data-page="${logical}"]`) ||
-    navList.querySelector(`.nav-item[data-page="${logical+1}"]`);
-  if (!el) {
-    const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
-      .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
-      .filter(x => Number.isFinite(x.p) && x.p <= logical + 1)
-      .sort((a,b) => b.p - a.p);
-    el = candidates[0]?.n ?? null;
+
+  // Desktop tree
+  if (navList) {
+    navList.querySelectorAll(".nav-item").forEach(el => {
+      el.classList.remove("active");
+      el.removeAttribute("aria-current");
+    });
+    let el =
+      navList.querySelector(`.nav-item[data-page="${logical}"]`) ||
+      navList.querySelector(`.nav-item[data-page="${logical+1}"]`);
+    if (!el) {
+      const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
+        .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
+        .filter(x => Number.isFinite(x.p) && x.p <= logical + 1)
+        .sort((a,b) => b.p - a.p);
+      el = candidates[0]?.n ?? null;
+    }
+    if (el) {
+      el.classList.add("active");
+      el.setAttribute("aria-current", "page");
+    }
   }
-  if (el) {
-    el.classList.add("active");
-    el.setAttribute("aria-current", "page");
-    const rect = el.getBoundingClientRect();
-    const srect = sidebar.getBoundingClientRect();
-    if (rect.top < srect.top || rect.bottom > srect.bottom) {
-      el.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+  // Mobile strip
+  if (navStrip) {
+    navStrip.querySelectorAll(".nav-chip").forEach(c => c.classList.remove("active"));
+    const chip =
+      navStrip.querySelector(`.nav-chip[data-page="${logical}"]`) ||
+      navStrip.querySelector(`.nav-chip[data-page="${logical+1}"]`);
+    if (chip) {
+      chip.classList.add("active");
+      chip.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
     }
   }
 }
