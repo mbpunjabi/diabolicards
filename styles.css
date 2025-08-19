@@ -147,8 +147,12 @@ body{
   padding: 8px;
 }
 
-/* keep PDF aspect; plugin sets pixel size */
-#book{ width:auto !important; height:auto !important; }
+/* DEFAULT: keep PDF aspect; plugin sets pixel size */
+#book{ width:auto; height:auto; }
+
+/* SPREAD MODE: let PageFlip stretch within the stage.
+   (Use !important to override the default rule above.) */
+body.spread-mode #book{ width:100% !important; height:100% !important; }
 
 /* ---- Pager / Status ---- */
 .counter{
@@ -164,7 +168,6 @@ body{
 }
 .progress-wrap.hide{ opacity:0; }
 .progress{height:6px;background:#0f1621;border-radius:999px;overflow:hidden;border:1px solid #203045}
-.progress span{display:block;height:100%;width:0%;background:linear-gradient(90deg,#1f9df0,#5ce1e6)}
 .status{font:12px system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;color:var(--muted);text-shadow:0 2px 0 rgba(0,0,0,.3)}
 .tip{opacity:.9}
 
