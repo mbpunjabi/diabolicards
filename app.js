@@ -1,10 +1,8 @@
-/* ---------- Config & Setup ---------- */
+/* ---------- Config ---------- */
 
-// Use your new bookmarked PDF here.
-// Put the file at: assets/the-guide-bookmarks.pdf
-// (Fallbacks let you keep older name if needed.)
+// Your bookmarked PDF (put it in assets/)
 const PDF_URLS = [
-  "assets/the-guide-bookmarks.pdf",
+  "assets/the-guide-bookmarks.pdf", // preferred (with ToC)
   "assets/the-guide.pdf",
   "the-guide.pdf"
 ];
@@ -28,9 +26,10 @@ const navList     = document.getElementById("navList");
 const sidebar     = document.getElementById("sidebar");
 const navToggle   = document.getElementById("navToggle");
 
-let flip = null;      // StPageFlip instance
-let pdfDoc = null;    // PDFDocumentProxy
-let pageImages = [];  // data URLs (1-based indexing convenience)
+let flip = null;       // StPageFlip instance
+let pdfDoc = null;     // PDFDocumentProxy
+let pageImages = [];   // array of data URLs
+let spreadEnabled = false; // track when we switch to spreads (desktop only)
 
 /* ---------- Device / Layout ---------- */
 
@@ -58,13 +57,15 @@ function setBusy(msg, pct){
     progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
   }
 }
-function clearBusy(){
-  progressBar.style.width = "0%";
-  progressUI.hidden = true;
-  statusText.textContent = "Ready";
+function clearBusyAndRemove(){
+  // fade then remove the progress UI entirely
+  progressUI.classList.add("hide");
+  setTimeout(() => {
+    progressUI.remove();
+  }, 220);
 }
 
-/* ---------- PDF Loading & Rendering ---------- */
+/* ---------- Boot ---------- */
 
 (async function init(){
   await loadFirstAvailable(PDF_URLS);
@@ -77,9 +78,10 @@ async function loadFirstAvailable(urls){
     try { await loadPdf(u); return; }
     catch (e) { /* try next path */ }
   }
-  setBusy("Failed to find the PDF at expected paths.");
-  setTimeout(clearBusy, 1800);
+  statusText.textContent = "PDF not found at expected paths.";
 }
+
+/* ---------- PDF Loading & Rendering ---------- */
 
 async function loadPdf(src){
   setBusy("Loading PDF…", 3);
@@ -88,15 +90,15 @@ async function loadPdf(src){
 
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  // first page to compute ratio
+  // first page → size/ratio
   const first = await pdfDoc.getPage(1);
 
-  // Height-driven scaling for a guaranteed single-page cover
+  // Height-driven scaling guarantees single cover layout
   const viewport1 = first.getViewport({ scale: 1 });
   const baseTargetH = Math.min(1200, Math.max(560, Math.floor(window.innerHeight * 0.82)));
   const scale = baseTargetH / viewport1.height;
 
-  // Render each page into a JPEG (sequential to keep memory stable)
+  // Render pages sequentially to data URLs
   pageImages = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
@@ -112,18 +114,24 @@ async function loadPdf(src){
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  // Build/refresh the flipbook in fixed single-page mode.
-  // This centers the cover and prevents a left blank page.
-  if (flip) try { flip.destroy(); } catch(e){}
+  // Build flipbook in "COVER" mode (single page) first
+  buildFlipbook({ mode: "cover", baseW: Math.floor(viewport1.width * scale), baseH: Math.floor(viewport1.height * scale) });
+
+  // Build outline-based navigation (sidebar)
+  await buildOutlineNav();
+
+  // Remove progress UI once everything is ready
+  clearBusyAndRemove();
+}
+
+/* ---------- Flipbook Builders ---------- */
+
+function buildFlipbook({ mode, baseW, baseH, startIndex = 0 }){
+  // Destroy existing instance
+  if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
 
-  const baseH = Math.floor(viewport1.height * scale);
-  const baseW = Math.floor(viewport1.width * scale);
-
-  flip = new St.PageFlip(bookEl, {
-    width:  baseW,
-    height: baseH,
-    size: "fixed",          // lock geometry → single page always
+  const optsBase = {
     minWidth: 320,
     maxWidth: 2200,
     minHeight: 420,
@@ -131,24 +139,46 @@ async function loadPdf(src){
     maxShadowOpacity: 0.22,
     drawShadow: true,
     flippingTime: 900,
-    showCover: true,        // first page acts as a hard cover
+    showCover: true,
     mobileScrollSupport: true,
     usePortrait: true
+  };
+
+  // Mode “cover” → force single page; Mode “spread” → responsive, allows spreads on wide screens.
+  let options;
+  if (mode === "cover" || isMobile()) {
+    options = { ...optsBase, size: "fixed", width: baseW, height: baseH };
+  } else {
+    options = { ...optsBase, size: "stretch", width: baseW, height: baseH };
+  }
+
+  flip = new St.PageFlip(bookEl, options);
+  flip.loadFromImages(pageImages);
+
+  // go to requested page (after rebuild)
+  if (startIndex) {
+    // clamp
+    const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
+    try { flip.turnToPage(ix); } catch(e){}
+  }
+
+  // Events
+  flip.on("flip", () => {
+    const idx = flip.getCurrentPageIndex();
+    updatePager();
+    highlightActiveInNav(idx);
+
+    // As soon as we leave the cover on desktop, switch to spreads once.
+    if (!isMobile() && !spreadEnabled && idx > 0) {
+      spreadEnabled = true;
+      // rebuild as “spread” and keep the same page index
+      buildFlipbook({ mode: "spread", baseW, baseH, startIndex: idx });
+    }
   });
 
-  flip.loadFromImages(pageImages);
-  flip.on("flip", () => {
-    updatePager();
-    highlightActiveInNav(flip.getCurrentPageIndex());
-  });
   flip.on("changeOrientation", updatePager);
 
   updatePager();
-
-  // Build outline-based navigation (tabs)
-  await buildOutlineNav();
-
-  clearBusy();
 }
 
 /* ---------- Controls / Pager ---------- */
@@ -175,7 +205,6 @@ function updatePager(){
 
 function handleResize(){
   if (!flip) return;
-  // On mobile/desktop toggles, keep single-page and let PageFlip recompute.
   try { flip.update(); } catch(e){}
 }
 
@@ -184,40 +213,44 @@ function handleResize(){
 async function buildOutlineNav(){
   try {
     const outline = await pdfDoc.getOutline();
+    navList.innerHTML = "";
+
     if (!outline || !outline.length) {
-      sidebar.style.display = "none"; // hide if no outline present
+      const empty = document.createElement("div");
+      empty.className = "status";
+      empty.textContent = "No contents found.";
+      navList.appendChild(empty);
       return;
     }
 
-    navList.innerHTML = "";
     const frag = document.createDocumentFragment();
 
     for (const item of outline) {
-      const el = await makeNavEntry(item, /*depth*/0);
+      const el = await makeNavEntry(item, 0);
       if (el) frag.appendChild(el);
     }
-
     navList.appendChild(frag);
   } catch (err) {
-    console.warn("No outline / bookmarks found or failed to parse.", err);
-    sidebar.style.display = "none";
+    navList.innerHTML = "<div class='status'>Contents unavailable.</div>";
+    console.warn("Outline parse failed:", err);
   }
 }
 
 async function makeNavEntry(item, depth){
   const pageNumber = await resolveOutlineItemToPage(item);
-  const li = document.createElement("div");
+  const wrap = document.createElement("div");
 
-  const a = document.createElement("button");
-  a.className = "nav-item " + (depth === 0 ? "nav-title" : "nav-sub");
-  a.type = "button";
-  a.textContent = (item.title || "Untitled").trim();
-  if (pageNumber) a.dataset.page = String(pageNumber - 1); // flip uses 0-based index
+  const btn = document.createElement("button");
+  btn.className = "nav-item " + (depth === 0 ? "nav-title" : "nav-sub");
+  btn.type = "button";
+  btn.textContent = (item.title || "Untitled").trim();
+  if (pageNumber) btn.dataset.page = String(pageNumber - 1); // 0-based for flip
 
-  a.addEventListener("click", () => {
-    const idx = parseInt(a.dataset.page, 10);
+  btn.addEventListener("click", () => {
+    const idx = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(idx)) {
       turnTo(idx);
+      // collapse mobile sidebar after navigation
       if (document.body.classList.contains("is-mobile")) {
         sidebar.classList.remove("open");
         navToggle.setAttribute("aria-expanded", "false");
@@ -225,18 +258,15 @@ async function makeNavEntry(item, depth){
     }
   });
 
-  li.appendChild(a);
+  wrap.appendChild(btn);
 
   if (item.items && item.items.length) {
-    const group = document.createElement("div");
     for (const sub of item.items) {
       const subEl = await makeNavEntry(sub, depth + 1);
-      if (subEl) group.appendChild(subEl);
+      if (subEl) wrap.appendChild(subEl);
     }
-    li.appendChild(group);
   }
-
-  return li;
+  return wrap;
 }
 
 async function resolveOutlineItemToPage(item){
@@ -244,19 +274,22 @@ async function resolveOutlineItemToPage(item){
     if (!item) return null;
     let dest = item.dest;
 
-    // If the outline uses named destinations, resolve them first.
+    // Named destination? resolve first
     if (typeof dest === "string") {
       dest = await pdfDoc.getDestination(dest);
     }
 
+    // Direct array destination: first element is a page ref
     if (Array.isArray(dest) && dest[0]) {
-      const ref = dest[0]; // reference to a page
+      const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
-      return pageIndex + 1; // convert to 1-based
+      return pageIndex + 1;
     }
-    // Some outlines may directly use a pageRef number:
-    if (typeof dest === "number") {
-      return dest + 1;
+
+    // Some PDFs put page in the outline URL, e.g., "#page=12"
+    if (typeof item.url === "string") {
+      const m = item.url.match(/[#?]page=(\d+)/i);
+      if (m) return parseInt(m[1], 10);
     }
   } catch (e) {
     // ignore and fall through
@@ -267,7 +300,6 @@ async function resolveOutlineItemToPage(item){
 /* ---------- Helpers ---------- */
 
 function turnTo(idx){
-  // page index safety
   const clamped = Math.max(0, Math.min(idx, (flip?.getPageCount?.() || 1) - 1));
   if (typeof flip?.turnToPage === "function") {
     flip.turnToPage(clamped);
@@ -278,8 +310,7 @@ function turnTo(idx){
 
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
-  const items = navList.querySelectorAll(".nav-item");
-  items.forEach(el => el.classList.remove("active"));
+  navList.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
   const current = navList.querySelector(`.nav-item[data-page="${currentIdx}"]`);
   if (current) current.classList.add("active");
 }
