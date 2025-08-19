@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>THE GUIDE</title>
+
+  <!-- UI font for controls -->
+  <link href="https://db.onlinewebfonts.com/c/24494d9d3ecae2ab25324d8348e8e54a?family=Komika+Slick" rel="stylesheet" />
+
+  <!-- PageFlip CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.css" />
+
+  <!-- App styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="bg-overlay"></div>
+
+  <div class="shell" role="region" aria-label="Flipbook viewer">
+    <div class="toolbar">
+      <h1 class="brand" title="THE GUIDE">THE GUIDE</h1>
+
+      <div class="spacer"></div>
+
+      <button id="prev" class="btn" title="Previous (←)">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        Prev
+      </button>
+
+      <div class="counter" aria-live="polite">
+        <span id="pageNow">0</span> / <span id="pageTotal">0</span>
+      </div>
+
+      <button id="next" class="btn" title="Next (→)">
+        Next
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
+      </button>
+    </div>
+
+    <main class="stage">
+      <div id="book" tabindex="0" aria-label="Flipbook area"></div>
+
+      <div class="progress-wrap" id="progressWrap" hidden>
+        <div class="progress"><span id="progressBar"></span></div>
+        <div class="status" id="status">Ready</div>
+      </div>
+    </main>
+
+    <p class="status tip">Tip: use ←/→ or click the page corners. First page is a <em>cover</em>.</p>
+  </div>
+
+  <!-- StPageFlip runtime -->
+  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- App -->
+  <script src="app.js"></script>
+</body>
+</html>
