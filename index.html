@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>THE GUIDE</title>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/st-pageflip@latest/dist/st-pageflip.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/css/page-flip.css" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -15,14 +15,14 @@
       <h1 class="brand" title="THE GUIDE">THE GUIDE</h1>
       <button id="navToggle" class="btn btn-ghost" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Toggle contents">Contents</button>
       <div class="spacer" aria-hidden="true"></div>
-      <button id="prev" class="btn" type="button" aria-label="Previous page" disabled>
+      <button id="prev" class="btn" type="button" aria-label="Previous page">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
         Prev
       </button>
       <div class="counter" aria-live="polite" aria-atomic="true">
         <span id="pageNow">0</span> / <span id="pageTotal">0</span>
       </div>
-      <button id="next" class="btn" type="button" aria-label="Next page" disabled>
+      <button id="next" class="btn" type="button" aria-label="Next page">
         Next
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M8.59 16.59 13.17 12 8.59 7.41 10 6l6 6-6 6z"/></svg>
       </button>
@@ -36,20 +36,20 @@
 
       <main class="stage" aria-label="Flipbook">
         <div id="book" tabindex="0"></div>
-        <div class="progress-wrap" id="progressWrap">
+        <div class="progress-wrap" id="progressWrap" hidden>
           <div class="progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-live="off">
             <span id="progressBar"></span>
           </div>
-          <div class="status" id="status" aria-live="polite">Loading...</div>
+          <div class="status" id="status" aria-live="polite">Ready</div>
         </div>
       </main>
     </div>
 
-    <p class="status tip">Tip: use ←/→ or tap corners. First page is a <em>cover</em>.</p>
+    <p class="status tip">Tip: use ←/→ or tap corners.</p>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/st-pageflip@latest/dist/st-pageflip.min.js"></script>
-  <script src="app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
