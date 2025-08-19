@@ -12,22 +12,17 @@ const progressBar = document.getElementById("progressBar");
 const statusText = document.getElementById("status");
 const navList = document.getElementById("navList");
 const sidebar = document.getElementById("sidebar");
-const navToggle = document.getElementById("navToggle");
+const toolbar = document.querySelector(".toolbar");
 let flip = null;
 let pdfDoc = null;
 let pageImages = [];
 let baseW = 0, baseH = 0;
+let resizeToken = 0;
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 }
 if (isMobile()) document.body.classList.add("is-mobile");
-if (navToggle) {
-  navToggle.addEventListener("click", () => {
-    const open = sidebar.classList.toggle("open");
-    navToggle.setAttribute("aria-expanded", open ? "true" : "false");
-  }, { passive: true });
-}
 
 function setBusy(msg, pct){
   if (!progressUI) return;
@@ -44,20 +39,26 @@ function clearBusyAndRemove(){
   setTimeout(() => progressUI?.remove(), 220);
   setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200);
 }
+function updateEnvVars(){
+  const h = toolbar?.offsetHeight || 64;
+  document.documentElement.style.setProperty("--toolbar-h", `${h}px`);
+  const avail = Math.max(320, window.innerHeight - h - 48);
+  document.documentElement.style.setProperty("--avail-h", `${avail}px`);
+}
+function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
 
 (async function init(){
-  await loadPdfWithRetry(PDF_URL);
+  updateEnvVars();
+  await loadPdfWithRetry(PDF_URL, 3, 300);
   bindControls();
   window.addEventListener("resize", handleResize, { passive: true });
+  window.addEventListener("pageshow", (e) => { if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex()); });
 })();
 
-async function loadPdfWithRetry(url){
-  try {
-    await loadPdf(url);
-  } catch (e) {
-    await new Promise(r => setTimeout(r, 250));
-    const bust = url.includes("?") ? `${url}&t=${Date.now()}` : `${url}?t=${Date.now()}`;
-    await loadPdf(bust);
+async function loadPdfWithRetry(url, tries = 3, delay = 300){
+  for (let i = 0; i < tries; i++) {
+    try { await loadPdf(i ? bust(url) : url); return; }
+    catch (e) { if (i === tries - 1) throw e; await new Promise(r => setTimeout(r, delay * (i + 1))); }
   }
 }
 
@@ -67,12 +68,9 @@ async function loadPdf(src){
   pdfDoc = await task.promise;
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  const stage = document.querySelector(".stage");
-  const stageH = Math.max(320, (stage?.clientHeight || 0) - 16);
-  const targetH = Math.min(1200, Math.max(560, stageH || Math.floor(window.innerHeight * 0.82)));
-
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
+  const targetH = Math.max(320, window.innerHeight - (toolbar?.offsetHeight || 64) - 48);
   const scale = targetH / vp1.height;
   baseW = Math.floor(vp1.width * scale);
   baseH = Math.floor(vp1.height * scale);
@@ -95,63 +93,80 @@ async function loadPdf(src){
   clearBusyAndRemove();
 }
 
+function safeRect(el){
+  const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
+  return { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
+}
 function computePageSize(pagesAcross){
-  const stage = document.querySelector(".stage");
-  const maxW = Math.max(320, (stage?.clientWidth || window.innerWidth) - 16);
-  const maxH = Math.max(320, (stage?.clientHeight || Math.floor(window.innerHeight * 0.82)) - 16);
+  const r = safeRect(document.querySelector(".stage"));
+  const maxW = Math.max(320, r.w - 16);
+  const maxH = Math.max(320, Math.min(parseInt(getComputedStyle(document.documentElement).getPropertyValue("--avail-h")) || r.h, r.h || 1));
   const s1 = maxH / baseH;
   const s2 = maxW / (pagesAcross * baseW);
   const s = Math.min(s1, s2, 1.0);
-  return { w: Math.max(200, Math.floor(baseW * s)), h: Math.max(200, Math.floor(baseH * s)) };
+  const w = Math.max(200, Math.floor(baseW * s));
+  const h = Math.max(200, Math.floor(baseH * s));
+  return (w < 220 || h < 220) ? null : { w, h };
 }
 
 function buildFlipbook(startIndex){
-  if (flip) { try { flip.destroy(); } catch(e){} }
-  bookEl.innerHTML = "";
+  requestAnimationFrame(() => {
+    const desktopSpread = !isMobile();
+    const pagesAcross = desktopSpread ? 2 : 1;
+    const sz = computePageSize(pagesAcross);
+    if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
-  const desktopSpread = !isMobile();
-  const pagesAcross = desktopSpread ? 2 : 1;
-  const sz = computePageSize(pagesAcross);
+    if (flip) { try { flip.destroy(); } catch(e){} }
+    bookEl.innerHTML = "";
 
-  const opts = {
-    minWidth: 320,
-    maxWidth: 2400,
-    minHeight: 420,
-    maxHeight: 3200,
-    maxShadowOpacity: 0.22,
-    drawShadow: true,
-    flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
-    showCover: false,
-    mobileScrollSupport: true,
-    usePortrait: isMobile(),
-    size: "fixed",
-    width: sz.w,
-    height: sz.h
-  };
+    const opts = {
+      minWidth: 320,
+      maxWidth: 2400,
+      minHeight: 420,
+      maxHeight: 3200,
+      maxShadowOpacity: 0.22,
+      drawShadow: true,
+      flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
+      showCover: false,
+      mobileScrollSupport: true,
+      usePortrait: isMobile(),
+      size: "fixed",
+      width: sz.w,
+      height: sz.h
+    };
 
-  flip = new St.PageFlip(bookEl, opts);
-  flip.loadFromImages(pageImages);
+    flip = new St.PageFlip(bookEl, opts);
+    flip.loadFromImages(pageImages);
 
-  const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
-  try { flip.turnToPage(ix); } catch(e){}
+    const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
+    try { flip.turnToPage(ix); } catch(e){}
 
-  flip.on("flip", () => {
-    const idx = flip.getCurrentPageIndex();
+    flip.on("flip", () => {
+      updatePager();
+      highlightActiveInNav(flip.getCurrentPageIndex());
+    });
+
     updatePager();
-    highlightActiveInNav(idx);
+    highlightActiveInNav(ix);
   });
-
-  updatePager();
-  highlightActiveInNav(ix);
 }
 
 function bindControls(){
-  prevBtn.addEventListener("click", () => goTo(Math.max(0, flip.getCurrentPageIndex() - 1)));
-  nextBtn.addEventListener("click", () => goTo(Math.min(flip.getPageCount() - 1, flip.getCurrentPageIndex() + 1)));
+  prevBtn.addEventListener("click", () => {
+    if (flip?.flipPrev) flip.flipPrev();
+    else goTo(Math.max(0, (flip?.getCurrentPageIndex?.()||0) - 1));
+  });
+  nextBtn.addEventListener("click", () => {
+    if (flip?.flipNext) flip.flipNext();
+    else {
+      const total = flip?.getPageCount?.() || 1;
+      goTo(Math.min(total - 1, (flip?.getCurrentPageIndex?.()||0) + 1));
+    }
+  });
   document.addEventListener("keydown", (e) => {
     if (!flip) return;
-    if (e.key === "ArrowLeft") { e.preventDefault(); goTo(Math.max(0, flip.getCurrentPageIndex() - 1)); }
-    if (e.key === "ArrowRight") { e.preventDefault(); goTo(Math.min(flip.getPageCount() - 1, flip.getCurrentPageIndex() + 1)); }
+    if (e.key === "ArrowLeft") { e.preventDefault(); if (flip.flipPrev) flip.flipPrev(); else goTo(Math.max(0, flip.getCurrentPageIndex()-1)); }
+    if (e.key === "ArrowRight") { e.preventDefault(); if (flip.flipNext) flip.flipNext(); else { const t=flip.getPageCount(); goTo(Math.min(t-1, flip.getCurrentPageIndex()+1)); } }
   });
 }
 
@@ -171,11 +186,9 @@ function updatePager(){
 }
 
 function handleResize(){
-  if (!flip) return;
-  try {
-    const idx = flip.getCurrentPageIndex();
-    buildFlipbook(idx);
-  } catch(e){}
+  updateEnvVars();
+  const id = ++resizeToken;
+  setTimeout(() => { if (id === resizeToken && flip) buildFlipbook(flip.getCurrentPageIndex()); }, 140);
 }
 
 async function buildOutlineNav(){
@@ -212,10 +225,6 @@ async function makeNavEntry(item, depth){
     const idx = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(idx)) {
       goTo(idx);
-      if (document.body.classList.contains("is-mobile")) {
-        sidebar.classList.remove("open");
-        navToggle.setAttribute("aria-expanded", "false");
-      }
       highlightActiveInNav(idx);
     }
   });
