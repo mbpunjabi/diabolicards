@@ -268,7 +268,9 @@ function highlightActiveInNav(currentIdx){
     el.classList.remove("active");
     el.removeAttribute("aria-current");
   });
-  let el = navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) || navList.querySelector(`.nav-item[data-page="${currentIdx+1}"]`);
+  let el =
+    navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) ||
+    navList.querySelector(`.nav-item[data-page="${currentIdx+1}"]`);
   if (!el) {
     const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
       .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
