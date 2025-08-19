@@ -7,7 +7,7 @@
   --radius:16px;
   --sidebar-w: 300px;
   --toolbar-h: 64px;
-  --avail-h: 70vh;
+  --avail-h: 72vh;
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -42,7 +42,7 @@ body{
   box-shadow:0 12px 32px var(--shadow);
   padding:10px;
   overflow:auto;
-  max-height: calc(100vh - var(--toolbar-h) - 48px);
+  max-height: calc(var(--avail-h));
 }
 
 .nav-head{font-family:"Bebas Neue",system-ui,sans-serif;font-size:22px;letter-spacing:.06em;color:#b7cdf0;margin:4px 6px 10px;user-select:none}
@@ -55,6 +55,7 @@ body{
 
 .stage{
   position:relative;
+  height: var(--avail-h);
   border-radius:var(--radius);
   background:radial-gradient(800px 500px at 70% 10%, rgba(12,19,30,.7), rgba(7,10,15,.6));
   border:1px solid #1b2330;
