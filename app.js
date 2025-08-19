@@ -1,6 +1,6 @@
 /* ---------- Config ---------- */
 
-// Lock to the single, bookmarked PDF:
+// Single, bookmarked PDF path
 const PDF_URL = "assets/the-guide-bookmarks.pdf";
 
 // PDF.js worker
@@ -9,7 +9,7 @@ if (window.pdfjsLib) {
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 }
 
-// UI elements
+// UI
 const prevBtn     = document.getElementById("prev");
 const nextBtn     = document.getElementById("next");
 const pageNow     = document.getElementById("pageNow");
@@ -24,9 +24,9 @@ const navToggle   = document.getElementById("navToggle");
 
 let flip = null;           // StPageFlip instance
 let pdfDoc = null;         // PDFDocumentProxy
-let pageImages = [];       // array of data URLs
-let spreadEnabled = false; // after cover → spreads (desktop only)
-let pageAspect = 1;        // width / height of a single page
+let pageImages = [];       // data URLs
+let spreadEnabled = false; // cover → spreads (desktop only)
+let pageW0 = 0, pageH0 = 0;
 
 /* ---------- Device / Layout ---------- */
 
@@ -35,7 +35,7 @@ function isMobile() {
 }
 if (isMobile()) document.body.classList.add("is-mobile");
 
-// mobile nav toggle
+// Mobile nav toggle
 if (navToggle) {
   navToggle.addEventListener("click", () => {
     const open = sidebar.classList.toggle("open");
@@ -76,51 +76,46 @@ async function loadPdf(src){
 
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  // first page → ratio (to keep correct aspect)
+  // Use first page for the pixel geometry (no aspect distortion)
   const first = await pdfDoc.getPage(1);
   const vp1   = first.getViewport({ scale: 1 });
-  pageAspect  = vp1.width / vp1.height;
-
-  // Height-driven scaling (no distortion), but we NEVER force CSS height:100%
   const targetH = Math.min(1200, Math.max(560, Math.floor(window.innerHeight * 0.82)));
   const scale   = targetH / vp1.height;
+  pageW0 = Math.floor(vp1.width  * scale);
+  pageH0 = Math.floor(vp1.height * scale);
 
-  // Render pages sequentially to data URLs
+  // Render each page to a JPEG
   pageImages = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
     const page = i === 1 ? first : await pdfDoc.getPage(i);
     const vp   = page.getViewport({ scale });
-
     const canvas = document.createElement("canvas");
     const ctx    = canvas.getContext("2d");
     canvas.width  = Math.floor(vp.width);
     canvas.height = Math.floor(vp.height);
-
     await page.render({ canvasContext: ctx, viewport: vp, intent: "display" }).promise;
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  // Build flipbook in COVER (single page) mode
-  const baseW = Math.floor(vp1.width  * scale);
-  const baseH = Math.floor(vp1.height * scale);
-  buildFlipbook({ mode: "cover", pageW: baseW, pageH: baseH });
+  // Start in COVER (single page) mode
+  buildFlipbook({ mode: "cover", startIndex: 0 });
 
-  // Build outline-based navigation (sidebar)
+  // Build outline navigation
   await buildOutlineNav();
 
-  // Remove progress UI once everything is ready
+  // Progress UI—gone
   clearBusyAndRemove();
+  setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200); // safety
 }
 
 /* ---------- Flipbook Builders ---------- */
 
-function buildFlipbook({ mode, pageW, pageH, startIndex = 0 }){
-  // Destroy existing instance
+function buildFlipbook({ mode, startIndex = 0 }){
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
 
-  const optsBase = {
+  const baseOpts = {
     minWidth: 320,
     maxWidth: 2200,
     minHeight: 420,
@@ -133,22 +128,16 @@ function buildFlipbook({ mode, pageW, pageH, startIndex = 0 }){
     usePortrait: true
   };
 
-  // Keep the plugin's own pixel size (no CSS stretching)
-  // COVER: always single page
-  // SPREAD: allow spreads on wide screens; plugin handles it.
   const options =
     (mode === "cover" || isMobile())
-      ? { ...optsBase, size: "fixed", width: pageW, height: pageH }
-      : { ...optsBase, size: "stretch", width: pageW, height: pageH };
+      ? { ...baseOpts, size: "fixed", width: pageW0, height: pageH0 }    // single page
+      : { ...baseOpts, size: "stretch", width: pageW0, height: pageH0 }; // spread-capable
 
   flip = new St.PageFlip(bookEl, options);
   flip.loadFromImages(pageImages);
 
-  // go to requested page after rebuild
-  if (startIndex) {
-    const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
-    try { flip.turnToPage(ix); } catch(e){}
-  }
+  // restore page
+  try { flip.turnToPage(Math.max(0, Math.min(startIndex, pageImages.length - 1))); } catch(e){}
 
   // Events
   flip.on("flip", () => {
@@ -156,10 +145,10 @@ function buildFlipbook({ mode, pageW, pageH, startIndex = 0 }){
     updatePager();
     highlightActiveInNav(idx);
 
-    // On desktop, as soon as we leave the cover, rebuild in SPREAD mode (once)
+    // Leave cover → switch to spreads (desktop only, once)
     if (!isMobile() && mode === "cover" && idx > 0 && !spreadEnabled) {
       spreadEnabled = true;
-      buildFlipbook({ mode: "spread", pageW, pageH, startIndex: idx });
+      buildFlipbook({ mode: "spread", startIndex: idx });
     }
   });
 
@@ -168,21 +157,52 @@ function buildFlipbook({ mode, pageW, pageH, startIndex = 0 }){
   updatePager();
 }
 
-/* ---------- Controls / Pager ---------- */
+/* ---------- Navigation + Controls ---------- */
 
 function bindControls(){
+  // Use index math to avoid any directional inversion
+  prevBtn.addEventListener("click", goPrev);
+  nextBtn.addEventListener("click", goNext);
+
   document.addEventListener("keydown", (e) => {
     if (!flip) return;
-    if (e.key === "ArrowLeft")  flip.flipPrev();
-    if (e.key === "ArrowRight") flip.flipNext();
+    if (e.key === "ArrowLeft")  goPrev();
+    if (e.key === "ArrowRight") goNext();
   });
-  prevBtn.addEventListener("click", () => flip && flip.flipPrev());
-  nextBtn.addEventListener("click", () => flip && flip.flipNext());
+}
+
+function goPrev(){
+  if (!flip) return;
+  const idx = Math.max(0, flip.getCurrentPageIndex() - 1);
+  goTo(idx);
+}
+function goNext(){
+  if (!flip) return;
+  const idx = Math.min(flip.getPageCount() - 1, flip.getCurrentPageIndex() + 1);
+  goTo(idx);
+}
+
+function goTo(targetIdx){
+  // If we’re on the cover and jumping past it on desktop, switch to spreads first
+  if (!isMobile() && !spreadEnabled && targetIdx > 0) {
+    spreadEnabled = true;
+    buildFlipbook({ mode: "spread", startIndex: targetIdx });
+    return;
+  }
+  turnTo(targetIdx);
+}
+
+function turnTo(idx){
+  const clamped = Math.max(0, Math.min(idx, (flip?.getPageCount?.() || 1) - 1));
+  try {
+    if (typeof flip?.turnToPage === "function") flip.turnToPage(clamped);
+    else if (typeof flip?.flip === "function")  flip.flip(clamped);
+  } catch(e){}
 }
 
 function updatePager(){
   if (!flip) return;
-  const idx   = flip.getCurrentPageIndex(); // 0-based (mostly left page in spreads)
+  const idx   = flip.getCurrentPageIndex();
   const total = flip.getPageCount();
   pageNow.textContent   = String(idx + 1);
   pageTotal.textContent = String(total);
@@ -211,7 +231,6 @@ async function buildOutlineNav(){
     }
 
     const frag = document.createDocumentFragment();
-
     for (const item of outline) {
       const el = await makeNavEntry(item, 0);
       if (el) frag.appendChild(el);
@@ -236,12 +255,12 @@ async function makeNavEntry(item, depth){
   btn.addEventListener("click", () => {
     const idx = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(idx)) {
-      turnTo(idx);
-      // collapse mobile sidebar after navigation
+      goTo(idx); // use robust goTo() (handles cover→spread safely)
       if (document.body.classList.contains("is-mobile")) {
         sidebar.classList.remove("open");
         navToggle.setAttribute("aria-expanded", "false");
       }
+      // highlight immediately (also updated on flip)
       highlightActiveInNav(idx);
     }
   });
@@ -262,9 +281,7 @@ async function resolveOutlineItemToPage(item){
     if (!item) return null;
     let dest = item.dest;
 
-    if (typeof dest === "string") {
-      dest = await pdfDoc.getDestination(dest);
-    }
+    if (typeof dest === "string") dest = await pdfDoc.getDestination(dest);
     if (Array.isArray(dest) && dest[0]) {
       const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
@@ -278,44 +295,28 @@ async function resolveOutlineItemToPage(item){
   return null;
 }
 
-/* ---------- Helpers ---------- */
-
-function turnTo(idx){
-  const clamped = Math.max(0, Math.min(idx, (flip?.getPageCount?.() || 1) - 1));
-  if (typeof flip?.turnToPage === "function") {
-    flip.turnToPage(clamped);
-  } else if (typeof flip?.flip === "function") {
-    flip.flip(clamped);
-  }
-}
-
-/* Highlight the active item.
-   In spreads, the current index usually refers to the LEFT page.
-   We consider either the left page (idx) OR the right page (idx+1) a match.
-   If neither matches exactly, we highlight the nearest previous section. */
+/* ---------- Nav Highlighting ---------- */
+/* Works for spreads: match current left page OR right page,
+   otherwise pick the closest earlier section. */
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
 
-  // Clear previous
   navList.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
 
-  // Try exact matches for left or right page of the spread
   let el =
     navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) ||
     navList.querySelector(`.nav-item[data-page="${currentIdx+1}"]`);
 
-  // Otherwise choose the last section whose page <= right page
   if (!el) {
     const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
       .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
       .filter(x => Number.isFinite(x.p) && x.p <= currentIdx + 1)
       .sort((a,b) => b.p - a.p);
-    el = candidates.length ? candidates[0].n : null;
+    el = candidates[0]?.n ?? null;
   }
 
   if (el) {
     el.classList.add("active");
-    // Optional: keep it in view
     const rect = el.getBoundingClientRect();
     const srect = sidebar.getBoundingClientRect();
     if (rect.top < srect.top || rect.bottom > srect.bottom) {
