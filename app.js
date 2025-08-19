@@ -22,45 +22,47 @@ const navList     = document.getElementById("navList");
 const sidebar     = document.getElementById("sidebar");
 const navToggle   = document.getElementById("navToggle");
 
-let flip = null;           // StPageFlip instance
-let pdfDoc = null;         // PDFDocumentProxy
-let pageImages = [];       // data URLs
-let spreadEnabled = false; // cover → spreads (desktop only)
-let pageW0 = 0, pageH0 = 0;
+let flip = null;            // StPageFlip instance
+let pdfDoc = null;          // PDFDocumentProxy
+let pageImages = [];        // data URLs
+let spreadEnabled = false;  // cover → spreads (desktop only)
+let rebuilding = false;     // guard against re-entrant rebuilds
+let pageW0 = 0, pageH0 = 0; // single page pixel size (from first page)
+let navReady = false;
 
 /* ---------- Device / Layout ---------- */
-
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 }
 if (isMobile()) document.body.classList.add("is-mobile");
 
-// Mobile nav toggle
 if (navToggle) {
   navToggle.addEventListener("click", () => {
     const open = sidebar.classList.toggle("open");
     navToggle.setAttribute("aria-expanded", open ? "true" : "false");
-  });
+  }, { passive: true });
 }
 
 /* ---------- Busy UI ---------- */
-
 function setBusy(msg, pct){
   if (!progressUI) return;
   progressUI.hidden = false;
   statusText.textContent = msg || "Working…";
   if (typeof pct === "number") {
     progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
+    progressUI.querySelector(".progress")?.setAttribute("aria-valuenow", String(Math.floor(pct)));
   }
 }
 function clearBusyAndRemove(){
   if (!progressUI) return;
   progressUI.classList.add("hide");
-  setTimeout(() => progressUI.remove(), 220);
+  // remove after transition
+  setTimeout(() => progressUI?.remove(), 220);
+  // belt-and-suspenders
+  setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200);
 }
 
 /* ---------- Boot ---------- */
-
 (async function init(){
   await loadPdf(PDF_URL);
   bindControls();
@@ -68,7 +70,6 @@ function clearBusyAndRemove(){
 })();
 
 /* ---------- PDF Loading & Rendering ---------- */
-
 async function loadPdf(src){
   setBusy("Loading PDF…", 3);
   const task = pdfjsLib.getDocument({ url: src });
@@ -76,15 +77,19 @@ async function loadPdf(src){
 
   pageTotal.textContent = String(pdfDoc.numPages);
 
-  // Use first page for the pixel geometry (no aspect distortion)
+  // Compute a scale that fits the STAGE height (fallback to viewport)
+  const stage = document.querySelector(".stage");
+  const stageH = Math.max(320, (stage?.clientHeight || 0) - 16); // padding margin
+  const targetH = Math.min(1200, Math.max(560, stageH || Math.floor(window.innerHeight * 0.82)));
+
+  // First page → geometry
   const first = await pdfDoc.getPage(1);
   const vp1   = first.getViewport({ scale: 1 });
-  const targetH = Math.min(1200, Math.max(560, Math.floor(window.innerHeight * 0.82)));
-  const scale   = targetH / vp1.height;
+  const scale = targetH / vp1.height;
   pageW0 = Math.floor(vp1.width  * scale);
   pageH0 = Math.floor(vp1.height * scale);
 
-  // Render each page to a JPEG
+  // Render each page to a JPEG (sequential for memory stability)
   pageImages = [];
   for (let i = 1; i <= pdfDoc.numPages; i++) {
     setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, ((i - 1) / pdfDoc.numPages) * 100);
@@ -98,20 +103,23 @@ async function loadPdf(src){
     pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
   }
 
-  // Start in COVER (single page) mode
+  // Start in COVER (single page) mode; spreads come after first flip/nav past page 1
   buildFlipbook({ mode: "cover", startIndex: 0 });
 
-  // Build outline navigation
+  // Build outline navigation (safe even if it fails)
   await buildOutlineNav();
+  navReady = true;
 
   // Progress UI—gone
   clearBusyAndRemove();
-  setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200); // safety
 }
 
 /* ---------- Flipbook Builders ---------- */
-
 function buildFlipbook({ mode, startIndex = 0 }){
+  if (rebuilding) return;
+  rebuilding = true;
+
+  // Destroy existing instance
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
 
@@ -122,7 +130,7 @@ function buildFlipbook({ mode, startIndex = 0 }){
     maxHeight: 3200,
     maxShadowOpacity: 0.22,
     drawShadow: true,
-    flippingTime: 900,
+    flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
     showCover: true,
     mobileScrollSupport: true,
     usePortrait: true
@@ -136,38 +144,41 @@ function buildFlipbook({ mode, startIndex = 0 }){
   flip = new St.PageFlip(bookEl, options);
   flip.loadFromImages(pageImages);
 
-  // restore page
-  try { flip.turnToPage(Math.max(0, Math.min(startIndex, pageImages.length - 1))); } catch(e){}
+  // Restore page (clamped)
+  const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
+  try { flip.turnToPage(ix); } catch(e){}
 
   // Events
   flip.on("flip", () => {
     const idx = flip.getCurrentPageIndex();
     updatePager();
-    highlightActiveInNav(idx);
+    if (navReady) highlightActiveInNav(idx);
 
     // Leave cover → switch to spreads (desktop only, once)
     if (!isMobile() && mode === "cover" && idx > 0 && !spreadEnabled) {
       spreadEnabled = true;
-      buildFlipbook({ mode: "spread", startIndex: idx });
+      rebuilding = false; // allow rebuild
+      // Rebuild as spread and preserve current index
+      return buildFlipbook({ mode: "spread", startIndex: idx });
     }
   });
 
   flip.on("changeOrientation", updatePager);
 
   updatePager();
+  // unlock after first paint
+  requestAnimationFrame(() => { rebuilding = false; });
 }
 
 /* ---------- Navigation + Controls ---------- */
-
 function bindControls(){
-  // Use index math to avoid any directional inversion
   prevBtn.addEventListener("click", goPrev);
   nextBtn.addEventListener("click", goNext);
 
   document.addEventListener("keydown", (e) => {
     if (!flip) return;
-    if (e.key === "ArrowLeft")  goPrev();
-    if (e.key === "ArrowRight") goNext();
+    if (e.key === "ArrowLeft")  { e.preventDefault(); goPrev(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
   });
 }
 
@@ -183,11 +194,11 @@ function goNext(){
 }
 
 function goTo(targetIdx){
-  // If we’re on the cover and jumping past it on desktop, switch to spreads first
-  if (!isMobile() && !spreadEnabled && targetIdx > 0) {
+  // On desktop, if we’re still on the cover and jumping forward, switch to spreads first
+  const onCover = flip && flip.getCurrentPageIndex() === 0 && !isMobile() && !spreadEnabled && targetIdx > 0;
+  if (onCover) {
     spreadEnabled = true;
-    buildFlipbook({ mode: "spread", startIndex: targetIdx });
-    return;
+    return buildFlipbook({ mode: "spread", startIndex: targetIdx });
   }
   turnTo(targetIdx);
 }
@@ -216,7 +227,6 @@ function handleResize(){
 }
 
 /* ---------- Outline → Navigation ---------- */
-
 async function buildOutlineNav(){
   try {
     const outline = await pdfDoc.getOutline();
@@ -250,17 +260,17 @@ async function makeNavEntry(item, depth){
   btn.className = "nav-item " + (depth === 0 ? "nav-title" : "nav-sub");
   btn.type = "button";
   btn.textContent = (item.title || "Untitled").trim();
+
   if (pageNumber) btn.dataset.page = String(pageNumber - 1); // 0-based for flip
 
   btn.addEventListener("click", () => {
     const idx = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(idx)) {
-      goTo(idx); // use robust goTo() (handles cover→spread safely)
+      goTo(idx); // handles cover→spread safely
       if (document.body.classList.contains("is-mobile")) {
         sidebar.classList.remove("open");
         navToggle.setAttribute("aria-expanded", "false");
       }
-      // highlight immediately (also updated on flip)
       highlightActiveInNav(idx);
     }
   });
@@ -297,11 +307,14 @@ async function resolveOutlineItemToPage(item){
 
 /* ---------- Nav Highlighting ---------- */
 /* Works for spreads: match current left page OR right page,
-   otherwise pick the closest earlier section. */
+   otherwise pick the closest earlier section. Also sets aria-current. */
 function highlightActiveInNav(currentIdx){
   if (!navList) return;
 
-  navList.querySelectorAll(".nav-item").forEach(el => el.classList.remove("active"));
+  navList.querySelectorAll(".nav-item").forEach(el => {
+    el.classList.remove("active");
+    el.removeAttribute("aria-current");
+  });
 
   let el =
     navList.querySelector(`.nav-item[data-page="${currentIdx}"]`) ||
@@ -317,6 +330,7 @@ function highlightActiveInNav(currentIdx){
 
   if (el) {
     el.classList.add("active");
+    el.setAttribute("aria-current", "page");
     const rect = el.getBoundingClientRect();
     const srect = sidebar.getBoundingClientRect();
     if (rect.top < srect.top || rect.bottom > srect.bottom) {
