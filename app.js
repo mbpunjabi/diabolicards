@@ -19,8 +19,8 @@ let flip = null;
 let pdfDoc = null;
 let pageImages = [];
 let baseW = 0, baseH = 0;
-let resizeToken = 0;
 let pdfPageCount = 0;
+let resizeToken = 0;
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -42,15 +42,13 @@ function clearBusyAndRemove(){
   setTimeout(() => progressUI?.remove(), 220);
   setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200);
 }
-function updateEnvVars(){
+function updateToolbarVar(){
   const h = toolbar?.offsetHeight || 64;
   document.documentElement.style.setProperty("--toolbar-h", `${h}px`);
-  const avail = Math.max(360, Math.floor(window.innerHeight - h - 48));
-  document.documentElement.style.setProperty("--avail-h", `${avail}px`);
 }
 function updateMobileNavHeight(){
   if (!document.body.classList.contains("is-mobile")) return;
-  const h = navStrip?.offsetHeight || 0;
+  const h = document.getElementById("navStrip")?.offsetHeight || 0;
   document.documentElement.style.setProperty("--mobile-nav-h", `${Math.max(40, h)}px`);
 }
 function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
@@ -60,10 +58,14 @@ function safeRect(el){
 }
 
 (async function init(){
-  updateEnvVars();
+  updateToolbarVar();
   await loadPdfWithRetry(PDF_URL, 3, 300);
   bindControls();
   window.addEventListener("resize", handleResize, { passive: true });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", handleResize, { passive: true });
+  }
+  window.addEventListener("orientationchange", () => setTimeout(handleResize, 200), { passive: true });
   window.addEventListener("pageshow", (e) => { if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex()); });
 })();
 
@@ -84,10 +86,11 @@ async function loadPdf(src){
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
 
-  const targetH = Math.max(360, parseInt(getComputedStyle(document.documentElement).getPropertyValue("--avail-h")) || (window.innerHeight - 120));
+  const stage = document.querySelector(".stage");
+  const r = safeRect(stage);
+  const targetH = Math.max(360, r.h - 16);
   const displayScale = targetH / vp1.height;
 
-  // Boost rendering scale on mobile for legibility (HiDPI-aware, clamped for memory)
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const qualityBoost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
   const renderScale = displayScale * qualityBoost;
@@ -97,7 +100,6 @@ async function loadPdf(src){
 
   pageImages = [];
 
-  // Transparent first page so background shows through on the left of first spread
   const blank = document.createElement("canvas");
   blank.width = Math.floor(vp1.width * displayScale);
   blank.height = Math.floor(vp1.height * displayScale);
@@ -209,7 +211,7 @@ function updatePager(){
 }
 
 function handleResize(){
-  updateEnvVars();
+  updateToolbarVar();
   const id = ++resizeToken;
   setTimeout(() => {
     if (id === resizeToken && flip) {
@@ -307,8 +309,7 @@ async function resolveOutlineItemToPage(item){
     if (Array.isArray(dest) && dest[0]) {
       const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
-      // We inserted a blank at index 0, so logical page == pdf page number
-      return pageIndex + 1;
+      return pageIndex + 1; // accounts for inserted blank at index 0
     }
     if (typeof item.url === "string") {
       const m = item.url.match(/[#?]page=(\d+)/i);
@@ -321,7 +322,6 @@ async function resolveOutlineItemToPage(item){
 function highlightActiveInNav(currentIdx){
   const logical = Math.max(1, currentIdx);
 
-  // Desktop tree
   if (navList) {
     navList.querySelectorAll(".nav-item").forEach(el => {
       el.classList.remove("active");
@@ -343,7 +343,6 @@ function highlightActiveInNav(currentIdx){
     }
   }
 
-  // Mobile strip
   if (navStrip) {
     navStrip.querySelectorAll(".nav-chip").forEach(c => c.classList.remove("active"));
     const chip =
