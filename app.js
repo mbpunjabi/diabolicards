@@ -1,4 +1,5 @@
-/* app.js — desktop: spreads with single cover; mobile: single; no rebuild on flip */
+/* app.js — desktop: single cover then spreads; mobile: single.
+   Rebuild only after flips when crossing the cover boundary. */
 
 const PDF_URL = "assets/the-guide-bookmarks.pdf";
 if (window.pdfjsLib) {
@@ -25,6 +26,10 @@ let pdfPageCount = 0;
 let baseW = 0, baseH = 0;
 let resizeToken = 0;
 let lastWidth = window.innerWidth;
+let currentPortrait = null;
+let currentShowCover = null;
+let currentFlipTime = 900;
+let rebuildTimer = 0;
 
 const isMobile = () =>
   /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
@@ -191,24 +196,24 @@ function computePageSize(pagesAcross){
   return (w < 260 || h < 260) ? null : { w, h };
 }
 
-function currentMode(){
-  const mobile = isMobile();
-  return {
-    isSingle: mobile,
-    pagesAcross: mobile ? 1 : 2,
-    usePortrait: mobile,
-    showCover: !mobile   // desktop: true -> single cover then spreads
-  };
+/* Decide the desired mode for a given page index */
+function modeForIndex(idx){
+  if (isMobile()) return { pagesAcross:1, usePortrait:true,  showCover:false };
+  if (idx === 0)  return { pagesAcross:1, usePortrait:true,  showCover:false }; // cover = centered single
+  return             { pagesAcross:2, usePortrait:false, showCover:true  };     // spreads from page 2+
 }
 
 function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
-    const mode = currentMode();
+    const mode = modeForIndex(startIndex);
     const sz = computePageSize(mode.pagesAcross);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
     if (flip) { try { flip.destroy(); } catch(e){} }
     bookEl.innerHTML = "";
+
+    const flipTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900;
+    currentFlipTime = flipTime;
 
     const opts = {
       minWidth: 320,
@@ -217,7 +222,7 @@ function buildFlipbook(startIndex){
       maxHeight: 3400,
       maxShadowOpacity: 0.22,
       drawShadow: true,
-      flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
+      flippingTime: flipTime,
       usePortrait: mode.usePortrait,
       showCover: mode.showCover,
       mobileScrollSupport: true,
@@ -236,6 +241,8 @@ function buildFlipbook(startIndex){
     });
 
     flip.loadFromImages(pageSrc);
+    currentPortrait = mode.usePortrait;
+    currentShowCover = mode.showCover;
 
     requestAnimationFrame(tagImagesThrottled);
 
@@ -243,6 +250,9 @@ function buildFlipbook(startIndex){
       updatePager();
       const idx = flip.getCurrentPageIndex();
       highlightActiveInNav(idx);
+
+      // schedule mode switch after the animation if crossing cover boundary
+      ensureLayoutForIndex(idx);
 
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
       const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
@@ -254,6 +264,19 @@ function buildFlipbook(startIndex){
       hydrateAround(idx, scaleFinal);
     });
   });
+}
+
+/* Switch modes only when needed, and only AFTER the flip finishes */
+function ensureLayoutForIndex(idx){
+  if (!flip || isMobile()) return;
+  const want = modeForIndex(idx);
+  if (want.usePortrait === currentPortrait && want.showCover === currentShowCover) return;
+
+  if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = 0; }
+  rebuildTimer = setTimeout(() => {
+    buildFlipbook(idx);
+    rebuildTimer = 0;
+  }, currentFlipTime + 30); // wait for animation to complete
 }
 
 function swapPage(pageIndex0, url){
