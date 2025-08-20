@@ -21,6 +21,7 @@ let pageImages = [];
 let baseW = 0, baseH = 0;
 let pdfPageCount = 0;
 let resizeToken = 0;
+let lastWidth = window.innerWidth;
 
 function isMobile() {
   return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
@@ -61,11 +62,17 @@ function safeRect(el){
   updateToolbarVar();
   await loadPdfWithRetry(PDF_URL, 3, 300);
   bindControls();
-  window.addEventListener("resize", handleResize, { passive: true });
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener("resize", handleResize, { passive: true });
-  }
-  window.addEventListener("orientationchange", () => setTimeout(handleResize, 200), { passive: true });
+
+  // Only rebuild on width changes (ignore height-only changes from address bar show/hide)
+  window.addEventListener("resize", () => {
+    const id = ++resizeToken;
+    const w = window.innerWidth;
+    if (Math.abs(w - lastWidth) < 2) return;
+    lastWidth = w;
+    setTimeout(() => { if (id === resizeToken) handleResizeWidthChange(); }, 120);
+  }, { passive: true });
+
+  window.addEventListener("orientationchange", () => setTimeout(handleResizeWidthChange, 250), { passive: true });
   window.addEventListener("pageshow", (e) => { if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex()); });
 })();
 
@@ -210,7 +217,7 @@ function updatePager(){
   nextBtn.disabled = idx >= (flip.getPageCount() - 1);
 }
 
-function handleResize(){
+function handleResizeWidthChange(){
   updateToolbarVar();
   const id = ++resizeToken;
   setTimeout(() => {
@@ -218,7 +225,7 @@ function handleResize(){
       buildFlipbook(flip.getCurrentPageIndex());
       updateMobileNavHeight();
     }
-  }, 140);
+  }, 120);
 }
 
 /* ----- Outline / Navigation ----- */
