@@ -1,3 +1,5 @@
+/* app.js — updated for: (1) single cover page on desktop, spreads after; (2) robust rebuild on layout change */
+
 const PDF_URL = "assets/the-guide-bookmarks.pdf";
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
@@ -18,19 +20,21 @@ const toolbar = document.querySelector(".toolbar");
 
 let flip = null;
 let pdfDoc = null;
-let baseW = 0, baseH = 0;
 let pdfPageCount = 0;
+let baseW = 0, baseH = 0;
 let resizeToken = 0;
 let lastWidth = window.innerWidth;
 
 const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
 if (isMobile()) document.body.classList.add("is-mobile");
 
-// NEW: start desktop in a temporary single-page "cover mode"
-let coverMode = !isMobile();
+/* CHANGED: default to spreads on desktop; we'll force single only for page 1 */
+let coverMode = false;
+let currentPortrait = null;
+let currentShowCover = null;
 
 const supportsWebP = (() => {
-  try { return document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0; }
+  try { return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp"); }
   catch { return false; }
 })();
 const IMG_MIME = supportsWebP ? "image/webp" : "image/jpeg";
@@ -38,7 +42,7 @@ const QUALITY_PREVIEW = 0.62;
 const QUALITY_FINAL = 0.92;
 const CONCURRENCY = isMobile() ? 2 : 4;
 
-let pageSrc = [];            // 0..N-1 -> PDF pages 1..N
+let pageSrc = [];
 const haveLow = new Set();
 const haveHigh = new Set();
 
@@ -98,19 +102,13 @@ async function loadPdfWithRetry(url, tries = 3, delay = 300){
 
 async function loadPdf(src){
   setBusy("Loading PDF…", 3);
-  const task = pdfjsLib.getDocument({
-    url: src,
-    disableRange: false,
-    disableStream: false,
-    disableAutoFetch: false
-  });
+  const task = pdfjsLib.getDocument({ url: src, disableRange: false, disableStream: false, disableAutoFetch: false });
   pdfDoc = await task.promise;
   pdfPageCount = pdfDoc.numPages;
   pageTotal.textContent = String(pdfPageCount);
 
   const first = await pdfDoc.getPage(1);
   const vp1 = first.getViewport({ scale: 1 });
-
   const stage = document.querySelector(".stage");
   const r = safeRect(stage);
   const targetH = Math.max(360, r.h - 16);
@@ -155,8 +153,7 @@ async function loadPdf(src){
   })();
 
   async function renderAllPreviews(scale, onEach){
-    let next = 1;
-    let done = 0;
+    let next = 1, done = 0;
     const workers = Array.from({length: CONCURRENCY}, () => (async function worker(){
       while (true) {
         const idx = next++;
@@ -177,12 +174,11 @@ async function renderPageURL(pageNum, scale, high){
   const page = await pdfDoc.getPage(pageNum);
   const vp = page.getViewport({ scale });
   const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: false });
+  const ctx = canvas.getContext("2d");
   canvas.width = Math.floor(vp.width);
   canvas.height = Math.floor(vp.height);
   await page.render({ canvasContext: ctx, viewport: vp, intent: "display" }).promise;
-  const q = high ? QUALITY_FINAL : QUALITY_PREVIEW;
-  return canvas.toDataURL(IMG_MIME, q);
+  return canvas.toDataURL(IMG_MIME, high ? QUALITY_FINAL : QUALITY_PREVIEW);
 }
 
 function computePageSize(pagesAcross){
@@ -199,7 +195,8 @@ function computePageSize(pagesAcross){
 
 function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
-    const isSingle = (isMobile() || coverMode);
+    /* CHANGED: single only on mobile OR when starting at page 0 (cover) */
+    const isSingle = isMobile() || startIndex === 0;
     const sz = computePageSize(isSingle ? 1 : 2);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
@@ -214,7 +211,6 @@ function buildFlipbook(startIndex){
       maxShadowOpacity: 0.22,
       drawShadow: true,
       flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
-      // IMPORTANT: start in real single-page mode with no cover offset
       usePortrait: isSingle,
       showCover: !isSingle,
       mobileScrollSupport: true,
@@ -226,22 +222,18 @@ function buildFlipbook(startIndex){
     flip = new St.PageFlip(bookEl, opts);
     flip.loadFromImages(pageSrc);
 
-    // Some Chromium builds ignore initial portrait flags until the first update.
-    // Nudge them once to guarantee a centered single cover.
     if (isSingle) {
       requestAnimationFrame(() => {
         try { flip.update({ usePortrait: true, showCover: false, width: sz.w, height: sz.h }); } catch(e){}
+        currentPortrait = true;
+        currentShowCover = false;
       });
+    } else {
+      currentPortrait = false;
+      currentShowCover = true;
     }
 
-    requestAnimationFrame(() => {
-      const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
-      imgs.forEach((img, i) => {
-        img.dataset.pageIndex = String(i);
-        img.decoding = "async";
-        img.loading = "eager";
-      });
-    });
+    requestAnimationFrame(tagImagesThrottled);
 
     const ix = Math.max(0, Math.min(startIndex, pageSrc.length - 1));
     try { flip.turnToPage(ix); } catch(e){}
@@ -250,12 +242,7 @@ function buildFlipbook(startIndex){
       updatePager();
       const idx = flip.getCurrentPageIndex();
 
-      // Leaving the cover on desktop → switch to spreads and keep cover alignment proper
-      if (coverMode && idx > 0 && !isMobile()) {
-        coverMode = false;
-        const sz2 = computePageSize(2);
-        try { flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h }); } catch(e){}
-      }
+      ensureLayoutForIndex(idx);
 
       highlightActiveInNav(idx);
 
@@ -264,7 +251,7 @@ function buildFlipbook(startIndex){
       const stage = document.querySelector(".stage");
       const r = safeRect(stage);
       const targetH = Math.max(360, r.h - 16);
-      const displayScale = baseH ? (targetH / (baseH / (targetH / baseH))) : 1;
+      const displayScale = baseH ? (targetH / baseH) : 1;
       const scaleFinal = displayScale * boost;
       hydrateAround(idx, scaleFinal);
     });
@@ -274,6 +261,16 @@ function buildFlipbook(startIndex){
   });
 }
 
+/* CHANGED: when toggling between cover (single) and spreads, rebuild instead of update() */
+function ensureLayoutForIndex(idx){
+  if (isMobile() || !flip) return;
+  const wantPortrait = idx === 0;      // cover only
+  const wantShowCover = !wantPortrait; // spreads after page 1
+  if (wantPortrait !== currentPortrait || wantShowCover !== currentShowCover) {
+    coverMode = wantPortrait;
+    buildFlipbook(idx); // rebuild to switch modes reliably
+  }
+}
 
 function swapPage(pageIndex0, url){
   pageSrc[pageIndex0] = url;
@@ -315,16 +312,11 @@ function bindControls(){
 }
 
 function goTo(idx0){
-  // Jumping via ToC from the cover → switch to spreads + keep cover rules
-  if (coverMode && idx0 > 0 && !isMobile() && flip) {
-    coverMode = false;
-    const sz2 = computePageSize(2);
-    try { flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h }); } catch(e){}
-  }
-  const clamped = Math.max(0, Math.min(idx0, (flip?.getPageCount?.() || 1) - 1));
+  if (!flip) return;
+  ensureLayoutForIndex(idx0);
+  const clamped = Math.max(0, Math.min(idx0, (flip.getPageCount?.() || 1) - 1));
   try { flip.turnToPage(clamped); } catch(e){}
 }
-
 
 function updatePager(){
   if (!flip) return;
@@ -334,8 +326,6 @@ function updatePager(){
   prevBtn.disabled = idx0 <= 0;
   nextBtn.disabled = idx0 >= (flip.getPageCount() - 1);
 }
-
-/* ---------------- Outline / Navigation ---------------- */
 
 async function buildOutlineNav(){
   try {
@@ -375,7 +365,7 @@ async function buildOutlineNav(){
       });
       navStrip.appendChild(chip);
     }
-  } catch (err) {
+  } catch {
     navList.innerHTML = "<div class='status'>Contents unavailable.</div>";
   }
 }
@@ -429,7 +419,7 @@ async function resolveOutlineItemToPage(item){
       const m = item.url.match(/[#?]page=(\d+)/i);
       if (m) return parseInt(m[1], 10);
     }
-  } catch (e) {}
+  } catch {}
   return null;
 }
 
@@ -484,3 +474,23 @@ function handleResizeWidthChange(){
     }
   }, 120);
 }
+
+/* --- Robust image tagging so high-res swaps always work --- */
+let tagTimer = null;
+function tagImages(){
+  const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
+  imgs.forEach((img, i) => {
+    if (!img.dataset.pageIndex) img.dataset.pageIndex = String(i);
+    img.decoding = "async";
+    img.loading = "eager";
+  });
+}
+function tagImagesThrottled(){
+  if (tagTimer) return;
+  tagTimer = requestAnimationFrame(() => {
+    tagTimer = null;
+    tagImages();
+  });
+}
+const mo = new MutationObserver(tagImagesThrottled);
+mo.observe(bookEl, { childList: true, subtree: true });
