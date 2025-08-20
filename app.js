@@ -200,8 +200,7 @@ function computePageSize(pagesAcross){
 function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
     const isSingle = (isMobile() || coverMode);
-    const pagesAcross = isSingle ? 1 : 2;
-    const sz = computePageSize(pagesAcross);
+    const sz = computePageSize(isSingle ? 1 : 2);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
     if (flip) { try { flip.destroy(); } catch(e){} }
@@ -215,9 +214,10 @@ function buildFlipbook(startIndex){
       maxShadowOpacity: 0.22,
       drawShadow: true,
       flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
+      // IMPORTANT: start in real single-page mode with no cover offset
+      usePortrait: isSingle,
+      showCover: !isSingle,
       mobileScrollSupport: true,
-      usePortrait: isSingle,       // single page while on cover or on mobile
-      showCover: !isSingle,        // IMPORTANT: off in single mode so page centers
       size: "fixed",
       width: sz.w,
       height: sz.h
@@ -225,6 +225,14 @@ function buildFlipbook(startIndex){
 
     flip = new St.PageFlip(bookEl, opts);
     flip.loadFromImages(pageSrc);
+
+    // Some Chromium builds ignore initial portrait flags until the first update.
+    // Nudge them once to guarantee a centered single cover.
+    if (isSingle) {
+      requestAnimationFrame(() => {
+        try { flip.update({ usePortrait: true, showCover: false, width: sz.w, height: sz.h }); } catch(e){}
+      });
+    }
 
     requestAnimationFrame(() => {
       const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
@@ -242,11 +250,11 @@ function buildFlipbook(startIndex){
       updatePager();
       const idx = flip.getCurrentPageIndex();
 
-      // Leaving the cover on desktop → switch to spreads + enable showCover
+      // Leaving the cover on desktop → switch to spreads and keep cover alignment proper
       if (coverMode && idx > 0 && !isMobile()) {
         coverMode = false;
         const sz2 = computePageSize(2);
-        flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h });
+        try { flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h }); } catch(e){}
       }
 
       highlightActiveInNav(idx);
@@ -265,6 +273,7 @@ function buildFlipbook(startIndex){
     highlightActiveInNav(ix);
   });
 }
+
 
 function swapPage(pageIndex0, url){
   pageSrc[pageIndex0] = url;
@@ -306,11 +315,11 @@ function bindControls(){
 }
 
 function goTo(idx0){
-  // Jumping via ToC from the cover → switch to spreads + enable showCover
+  // Jumping via ToC from the cover → switch to spreads + keep cover rules
   if (coverMode && idx0 > 0 && !isMobile() && flip) {
     coverMode = false;
     const sz2 = computePageSize(2);
-    flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h });
+    try { flip.update({ usePortrait: false, showCover: true, width: sz2.w, height: sz2.h }); } catch(e){}
   }
   const clamped = Math.max(0, Math.min(idx0, (flip?.getPageCount?.() || 1) - 1));
   try { flip.turnToPage(clamped); } catch(e){}
