@@ -1,5 +1,3 @@
-/* styles.css — remove white frame without overriding layout properties */
-
 :root{
   --accent:#1f9df0;
   --panel:#111419;
@@ -77,7 +75,7 @@ body{
 /* Flipbook root */
 #book{ width:auto; height:auto; }
 
-/* Remove white frame without breaking layout rules */
+/* Remove PageFlip's white dummy leaf & frames */
 #book .stf__outer,
 #book .stf__wrapper,
 #book .stf__block,
@@ -86,7 +84,8 @@ body{
 #book .stf__hard,
 #book .stf__inner,
 #book canvas{
-  background-color: transparent !important;
+  background: transparent !important;       /* shorthand matters */
+  background-color: transparent !important; /* for safety */
 }
 #book .stf__item::before,
 #book .stf__page::before{
@@ -94,13 +93,13 @@ body{
 }
 #book .stf__shadow{ box-shadow:none !important; }
 
-/* keep keyboard focus visible */
+/* Keep keyboard focus visible */
 #book :focus-visible{
   outline: 2px solid var(--accent) !important;
   outline-offset: 2px;
 }
 
-/* prevent accidental drags/selections on page images */
+/* Prevent accidental drags/selections on page images */
 #book img{
   user-select: none;
   -webkit-user-drag: none;
@@ -123,7 +122,7 @@ body.is-mobile{
 body.is-mobile .layout{ grid-template-columns: 1fr; }
 body.is-mobile .sidebar{ display: none; }
 
-/* ensure progress/etc. never hides behind the mobile strip */
+/* Ensure progress/etc. never hides behind the mobile strip */
 body.is-mobile .stage{ padding-bottom: calc(8px + var(--mobile-nav-h)); }
 
 .nav-strip{ display:none; }
@@ -170,21 +169,4 @@ body.is-mobile .nav-strip{
   .toolbar{ gap:6px; padding:8px }
   .counter{ padding:4px 8px }
   .btn{ padding:8px 10px }
-}
-
-/* Kill PageFlip’s white insert on the cover */
-#book .stf__outer,
-#book .stf__wrapper,
-#book .stf__block,
-#book .stf__item,
-#book .stf__page,
-#book .stf__hard,
-#book .stf__inner,
-#book canvas{
-  background: transparent !important;      /* <- new */
-  background-color: transparent !important;
-}
-#book .stf__item::before,
-#book .stf__page::before{
-  background: transparent !important;
 }
