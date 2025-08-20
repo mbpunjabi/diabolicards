@@ -1,4 +1,4 @@
-/* app.js — single cover on desktop, spreads after; rebuild when crossing cover; wait for init() */
+/* app.js — desktop: spreads with single cover; mobile: single; no rebuild on flip */
 
 const PDF_URL = "assets/the-guide-bookmarks.pdf";
 if (window.pdfjsLib) {
@@ -31,16 +31,9 @@ const isMobile = () =>
   window.innerWidth <= 768;
 if (isMobile()) document.body.classList.add("is-mobile");
 
-/* desktop defaults to spreads; we’ll show single only on page 0 */
-let currentPortrait = null;
-let currentShowCover = null;
-
 const supportsWebP = (() => {
-  try {
-    return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp");
-  } catch {
-    return false;
-  }
+  try { return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp"); }
+  catch { return false; }
 })();
 const IMG_MIME = supportsWebP ? "image/webp" : "image/jpeg";
 const QUALITY_PREVIEW = 0.62;
@@ -51,89 +44,63 @@ let pageSrc = [];
 const haveLow = new Set();
 const haveHigh = new Set();
 
-function setBusy(msg, pct) {
+function setBusy(msg, pct){
   if (!progressUI) return;
   progressUI.hidden = false;
   statusText.textContent = msg || "Working…";
   if (typeof pct === "number") {
     progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`;
-    progressUI
-      .querySelector(".progress")
-      ?.setAttribute("aria-valuenow", String(Math.floor(pct)));
+    progressUI.querySelector(".progress")?.setAttribute("aria-valuenow", String(Math.floor(pct)));
   }
 }
-function clearBusyAndRemove() {
+function clearBusyAndRemove(){
   if (!progressUI) return;
   progressUI.classList.add("hide");
   setTimeout(() => progressUI?.remove(), 220);
   setTimeout(() => document.getElementById("progressWrap")?.remove(), 1200);
 }
-function updateToolbarVar() {
+function updateToolbarVar(){
   const h = toolbar?.offsetHeight || 64;
   document.documentElement.style.setProperty("--toolbar-h", `${h}px`);
 }
-function updateMobileNavHeight() {
+function updateMobileNavHeight(){
   if (!document.body.classList.contains("is-mobile")) return;
   const h = document.getElementById("navStrip")?.offsetHeight || 0;
   document.documentElement.style.setProperty("--mobile-nav-h", `${Math.max(40, h)}px`);
 }
-function safeRect(el) {
+function safeRect(el){
   const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
   return { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
 }
-function bust(u) {
-  return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`;
-}
+function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
 
-(async function init() {
+(async function init(){
   updateToolbarVar();
   await loadPdfWithRetry(PDF_URL, 3, 300);
   bindControls();
 
-  window.addEventListener(
-    "resize",
-    () => {
-      const w = window.innerWidth;
-      if (Math.abs(w - lastWidth) < 2) return;
-      lastWidth = w;
-      const id = ++resizeToken;
-      setTimeout(() => {
-        if (id === resizeToken) handleResizeWidthChange();
-      }, 120);
-    },
-    { passive: true }
-  );
+  window.addEventListener("resize", () => {
+    const w = window.innerWidth;
+    if (Math.abs(w - lastWidth) < 2) return;
+    lastWidth = w;
+    const id = ++resizeToken;
+    setTimeout(() => { if (id === resizeToken) handleResizeWidthChange(); }, 120);
+  }, { passive: true });
 
-  window.addEventListener(
-    "orientationchange",
-    () => setTimeout(handleResizeWidthChange, 250),
-    { passive: true }
-  );
-  window.addEventListener("pageshow", (e) => {
-    if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex());
-  });
+  window.addEventListener("orientationchange", () => setTimeout(handleResizeWidthChange, 250), { passive: true });
+  window.addEventListener("pageshow", (e) => { if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex()); });
 })();
 
-async function loadPdfWithRetry(url, tries = 3, delay = 300) {
+async function loadPdfWithRetry(url, tries = 3, delay = 300){
   for (let i = 0; i < tries; i++) {
-    try {
-      await loadPdf(i ? bust(url) : url);
-      return;
-    } catch (e) {
-      if (i === tries - 1) throw e;
-      await new Promise((r) => setTimeout(r, delay * (i + 1)));
-    }
+    try { await loadPdf(i ? bust(url) : url); return; }
+    catch (e) { if (i === tries - 1) throw e; await new Promise(r => setTimeout(r, delay * (i + 1))); }
   }
 }
 
-async function loadPdf(src) {
+async function loadPdf(src){
   setBusy("Loading PDF…", 3);
-  const task = pdfjsLib.getDocument({
-    url: src,
-    disableRange: false,
-    disableStream: false,
-    disableAutoFetch: false,
-  });
+  const task = pdfjsLib.getDocument({ url: src, disableRange: false, disableStream: false, disableAutoFetch: false });
   pdfDoc = await task.promise;
   pdfPageCount = pdfDoc.numPages;
   pageTotal.textContent = String(pdfPageCount);
@@ -146,9 +113,7 @@ async function loadPdf(src) {
   const displayScale = targetH / vp1.height;
 
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
-  const qualityBoost = isMobile()
-    ? Math.min(Math.max(1.75, dpr * 1.25), 2.5)
-    : Math.min(Math.max(1.25, dpr), 1.75);
+  const qualityBoost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
   const scalePreview = displayScale * (isMobile() ? 1.15 : 1.0);
   const scaleFinal = displayScale * qualityBoost;
 
@@ -164,8 +129,7 @@ async function loadPdf(src) {
 
   try {
     const hi1 = await renderPageURL(1, scaleFinal, true);
-    pageSrc[0] = hi1;
-    haveHigh.add(1);
+    pageSrc[0] = hi1; haveHigh.add(1);
   } catch {}
 
   buildFlipbook(0);
@@ -186,45 +150,36 @@ async function loadPdf(src) {
     }
   })();
 
-  async function renderAllPreviews(scale, onEach) {
-    let next = 1,
-      done = 0;
-    const workers = Array.from({ length: CONCURRENCY }, () =>
-      (async function worker() {
-        while (true) {
-          const idx = next++;
-          if (idx > pdfPageCount) break;
-          try {
-            const url = await renderPageURL(idx, scale, false);
-            pageSrc[idx - 1] = url;
-            haveLow.add(idx);
-            done++;
-            onEach && onEach(done);
-          } catch {
-            done++;
-            onEach && onEach(done);
-          }
-        }
-      })()
-    );
+  async function renderAllPreviews(scale, onEach){
+    let next = 1, done = 0;
+    const workers = Array.from({length: CONCURRENCY}, () => (async function worker(){
+      while (true) {
+        const idx = next++;
+        if (idx > pdfPageCount) break;
+        try {
+          const url = await renderPageURL(idx, scale, false);
+          pageSrc[idx - 1] = url;
+          haveLow.add(idx);
+          done++; onEach && onEach(done);
+        } catch { done++; onEach && onEach(done); }
+      }
+    })());
     await Promise.all(workers);
   }
 }
 
-async function renderPageURL(pageNum, scale, high) {
+async function renderPageURL(pageNum, scale, high){
   const page = await pdfDoc.getPage(pageNum);
   const vp = page.getViewport({ scale });
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   canvas.width = Math.floor(vp.width);
   canvas.height = Math.floor(vp.height);
-  await page
-    .render({ canvasContext: ctx, viewport: vp, intent: "display" })
-    .promise;
+  await page.render({ canvasContext: ctx, viewport: vp, intent: "display" }).promise;
   return canvas.toDataURL(IMG_MIME, high ? QUALITY_FINAL : QUALITY_PREVIEW);
 }
 
-function computePageSize(pagesAcross) {
+function computePageSize(pagesAcross){
   const r = safeRect(document.querySelector(".stage"));
   const maxW = Math.max(320, r.w - 16);
   const maxH = Math.max(320, r.h - 16);
@@ -233,20 +188,26 @@ function computePageSize(pagesAcross) {
   const s = Math.min(s1, s2, 1.0);
   const w = Math.max(260, Math.floor(baseW * s));
   const h = Math.max(260, Math.floor(baseH * s));
-  return w < 260 || h < 260 ? null : { w, h };
+  return (w < 260 || h < 260) ? null : { w, h };
 }
 
-function buildFlipbook(startIndex) {
+function currentMode(){
+  const mobile = isMobile();
+  return {
+    isSingle: mobile,
+    pagesAcross: mobile ? 1 : 2,
+    usePortrait: mobile,
+    showCover: !mobile   // desktop: true -> single cover then spreads
+  };
+}
+
+function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
-    const isSingle = isMobile() || startIndex === 0; // cover only
-    const sz = computePageSize(isSingle ? 1 : 2);
+    const mode = currentMode();
+    const sz = computePageSize(mode.pagesAcross);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
-    if (flip) {
-      try {
-        flip.destroy();
-      } catch (e) {}
-    }
+    if (flip) { try { flip.destroy(); } catch(e){} }
     bookEl.innerHTML = "";
 
     const opts = {
@@ -257,17 +218,16 @@ function buildFlipbook(startIndex) {
       maxShadowOpacity: 0.22,
       drawShadow: true,
       flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
-      usePortrait: isSingle,
-      showCover: !isSingle, // treat first page as single then spreads
+      usePortrait: mode.usePortrait,
+      showCover: mode.showCover,
       mobileScrollSupport: true,
       size: "fixed",
       width: sz.w,
-      height: sz.h,
+      height: sz.h
     };
 
     flip = new St.PageFlip(bookEl, opts);
 
-    // Wait for PageFlip to finish its setup before jumping pages
     flip.on("init", () => {
       const ix = Math.max(0, Math.min(startIndex, pageSrc.length - 1));
       try { flip.turnToPage(ix); } catch(e){}
@@ -277,50 +237,33 @@ function buildFlipbook(startIndex) {
 
     flip.loadFromImages(pageSrc);
 
-    currentPortrait = isSingle;
-    currentShowCover = !isSingle;
-
     requestAnimationFrame(tagImagesThrottled);
 
     flip.on("flip", () => {
       updatePager();
       const idx = flip.getCurrentPageIndex();
-
-      ensureLayoutForIndex(idx);
       highlightActiveInNav(idx);
 
       const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const boost = isMobile()
-        ? Math.min(Math.max(1.75, dpr * 1.25), 2.5)
-        : Math.min(Math.max(1.25, dpr), 1.75);
+      const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
       const stage = document.querySelector(".stage");
       const r = safeRect(stage);
       const targetH = Math.max(360, r.h - 16);
-      const displayScale = baseH ? targetH / baseH : 1;
+      const displayScale = baseH ? (targetH / baseH) : 1;
       const scaleFinal = displayScale * boost;
       hydrateAround(idx, scaleFinal);
     });
   });
 }
 
-/* Rebuild only when crossing the cover boundary on desktop */
-function ensureLayoutForIndex(idx) {
-  if (isMobile() || !flip) return;
-  const wantPortrait = idx === 0;      // only cover is single
-  const wantShowCover = !wantPortrait; // spreads after
-  if (wantPortrait !== currentPortrait || wantShowCover !== currentShowCover) {
-    buildFlipbook(idx);
-  }
-}
-
-function swapPage(pageIndex0, url) {
+function swapPage(pageIndex0, url){
   pageSrc[pageIndex0] = url;
   const img = bookEl.querySelector(`img[data-page-index="${pageIndex0}"]`);
   if (img && img.src !== url) img.src = url;
 }
 
-function hydrateAround(centerIdx0, scaleFinal) {
-  const targets = new Set([centerIdx0 - 2, centerIdx0 - 1, centerIdx0, centerIdx0 + 1, centerIdx0 + 2]);
+function hydrateAround(centerIdx0, scaleFinal){
+  const targets = new Set([centerIdx0-2, centerIdx0-1, centerIdx0, centerIdx0+1, centerIdx0+2]);
   targets.forEach(async (i0) => {
     if (i0 < 0 || i0 >= pdfPageCount) return;
     const pdfPage = i0 + 1;
@@ -333,44 +276,17 @@ function hydrateAround(centerIdx0, scaleFinal) {
   });
 }
 
-function bindControls() {
-  prevBtn.addEventListener("click", () => {
-    if (flip?.flipPrev) flip.flipPrev();
-    else goTo(Math.max(0, (flip?.getCurrentPageIndex?.() || 0) - 1));
-  });
-  nextBtn.addEventListener("click", () => {
-    if (flip?.flipNext) flip.flipNext();
-    else {
-      const total = flip?.getPageCount?.() || 1;
-      goTo(Math.min(total - 1, (flip?.getCurrentPageIndex?.() || 0) + 1));
-    }
-  });
+function bindControls(){
+  prevBtn.addEventListener("click", () => { if (flip) flip.flipPrev(); });
+  nextBtn.addEventListener("click", () => { if (flip) flip.flipNext(); });
   document.addEventListener("keydown", (e) => {
     if (!flip) return;
-    if (e.key === "ArrowLeft") {
-      e.preventDefault();
-      if (flip.flipPrev) flip.flipPrev();
-      else goTo(Math.max(0, flip.getCurrentPageIndex() - 1));
-    }
-    if (e.key === "ArrowRight") {
-      e.preventDefault();
-      if (flip.flipNext) flip.flipNext();
-      else {
-        const t = flip.getPageCount();
-        goTo(Math.min(t - 1, flip.getCurrentPageIndex() + 1));
-      }
-    }
+    if (e.key === "ArrowLeft") { e.preventDefault(); flip.flipPrev(); }
+    if (e.key === "ArrowRight") { e.preventDefault(); flip.flipNext(); }
   });
 }
 
-function goTo(idx0) {
-  if (!flip) return;
-  ensureLayoutForIndex(idx0);
-  const clamped = Math.max(0, Math.min(idx0, (flip.getPageCount?.() || 1) - 1));
-  try { flip.turnToPage(clamped); } catch(e){}
-}
-
-function updatePager() {
+function updatePager(){
   if (!flip) return;
   const idx0 = flip.getCurrentPageIndex();
   pageNow.textContent = String(idx0 + 1);
@@ -379,7 +295,7 @@ function updatePager() {
   nextBtn.disabled = idx0 >= (flip.getPageCount() - 1);
 }
 
-async function buildOutlineNav() {
+async function buildOutlineNav(){
   try {
     const outline = await pdfDoc.getOutline();
     navList.innerHTML = "";
@@ -411,7 +327,7 @@ async function buildOutlineNav() {
       chip.addEventListener("click", () => {
         const pdfPage = parseInt(chip.dataset.page, 10);
         if (Number.isFinite(pdfPage)) {
-          goTo(pdfPage - 1);
+          try { flip.turnToPage(pdfPage - 1); } catch(e){}
           highlightActiveInNav(pdfPage - 1);
         }
       });
@@ -422,7 +338,7 @@ async function buildOutlineNav() {
   }
 }
 
-async function makeNavEntry(item, depth) {
+async function makeNavEntry(item, depth){
   const pageNumber = await resolveOutlineItemToPage(item);
   const wrap = document.createElement("div");
   const btn = document.createElement("button");
@@ -433,7 +349,7 @@ async function makeNavEntry(item, depth) {
   btn.addEventListener("click", () => {
     const pdfPage = parseInt(btn.dataset.page, 10);
     if (Number.isFinite(pdfPage)) {
-      goTo(pdfPage - 1);
+      try { flip.turnToPage(pdfPage - 1); } catch(e){}
       highlightActiveInNav(pdfPage - 1);
     }
   });
@@ -447,7 +363,7 @@ async function makeNavEntry(item, depth) {
   return wrap;
 }
 
-async function flattenOutline(items, depth = 0, acc = []) {
+async function flattenOutline(items, depth = 0, acc = []){
   for (const it of items) {
     const page = await resolveOutlineItemToPage(it);
     const title = (it.title || "Untitled").trim();
@@ -457,7 +373,7 @@ async function flattenOutline(items, depth = 0, acc = []) {
   return acc;
 }
 
-async function resolveOutlineItemToPage(item) {
+async function resolveOutlineItemToPage(item){
   try {
     if (!item) return null;
     let dest = item.dest;
@@ -475,22 +391,22 @@ async function resolveOutlineItemToPage(item) {
   return null;
 }
 
-function highlightActiveInNav(currentIdx0) {
+function highlightActiveInNav(currentIdx0){
   const pdfPage = currentIdx0 + 1;
 
   if (navList) {
-    navList.querySelectorAll(".nav-item").forEach((el) => {
+    navList.querySelectorAll(".nav-item").forEach(el => {
       el.classList.remove("active");
       el.removeAttribute("aria-current");
     });
     let el =
       navList.querySelector(`.nav-item[data-page="${pdfPage}"]`) ||
-      navList.querySelector(`.nav-item[data-page="${pdfPage + 1}"]`);
+      navList.querySelector(`.nav-item[data-page="${pdfPage+1}"]`);
     if (!el) {
       const candidates = Array.from(navList.querySelectorAll(".nav-item[data-page]"))
-        .map((n) => ({ n, p: parseInt(n.dataset.page, 10) }))
-        .filter((x) => Number.isFinite(x.p) && x.p <= pdfPage + 1)
-        .sort((a, b) => b.p - a.p);
+        .map(n => ({ n, p: parseInt(n.dataset.page,10) }))
+        .filter(x => Number.isFinite(x.p) && x.p <= pdfPage + 1)
+        .sort((a,b) => b.p - a.p);
       el = candidates[0]?.n ?? null;
     }
     if (el) {
@@ -505,10 +421,10 @@ function highlightActiveInNav(currentIdx0) {
   }
 
   if (navStrip) {
-    navStrip.querySelectorAll(".nav-chip").forEach((c) => c.classList.remove("active"));
+    navStrip.querySelectorAll(".nav-chip").forEach(c => c.classList.remove("active"));
     const chip =
       navStrip.querySelector(`.nav-chip[data-page="${pdfPage}"]`) ||
-      navStrip.querySelector(`.nav-chip[data-page="${pdfPage + 1}"]`);
+      navStrip.querySelector(`.nav-chip[data-page="${pdfPage+1}"]`);
     if (chip) {
       chip.classList.add("active");
       chip.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
@@ -516,7 +432,7 @@ function highlightActiveInNav(currentIdx0) {
   }
 }
 
-function handleResizeWidthChange() {
+function handleResizeWidthChange(){
   updateToolbarVar();
   const id = ++resizeToken;
   setTimeout(() => {
@@ -527,9 +443,9 @@ function handleResizeWidthChange() {
   }, 120);
 }
 
-/* --- robust image tagging --- */
+/* --- image tagging --- */
 let tagTimer = null;
-function tagImages() {
+function tagImages(){
   const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
   imgs.forEach((img, i) => {
     if (!img.dataset.pageIndex) img.dataset.pageIndex = String(i);
@@ -537,7 +453,7 @@ function tagImages() {
     img.loading = "eager";
   });
 }
-function tagImagesThrottled() {
+function tagImagesThrottled(){
   if (tagTimer) return;
   tagTimer = requestAnimationFrame(() => {
     tagTimer = null;
