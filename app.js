@@ -1,7 +1,7 @@
-/* app.js — Stable cover+spread behavior
-   - Desktop: cover is a centered single page; spreads start from page 2
-   - Mobile: always single page
-   - No rebuilds during a flip; handoff only after animation completes
+/* app.js — Robust cover + spreads
+   Desktop: cover is centered single; spreads start from page 2
+   Mobile: always single
+   Handoff between modes only AFTER flip animation completes
 */
 
 const PDF_URL = "assets/the-guide-bookmarks.pdf";
@@ -10,7 +10,7 @@ if (window.pdfjsLib) {
     "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 }
 
-// UI hooks
+// UI
 const prevBtn = document.getElementById("prev");
 const nextBtn = document.getElementById("next");
 const pageNow = document.getElementById("pageNow");
@@ -25,22 +25,26 @@ const sidebar = document.getElementById("sidebar");
 const toolbar = document.querySelector(".toolbar");
 
 // State
-let flip = null;                   // current PageFlip instance
+let flip = null;
 let pdfDoc = null;
 let pdfPageCount = 0;
 let baseW = 0, baseH = 0;
+
 let lastWidth = window.innerWidth;
 let resizeToken = 0;
-let handoffTimer = 0;              // delayed rebuild after flip
-let currentFlipTime = 900;         // tracks animation time for safe handoff
-let currentUsePortrait = null;     // tracks current mode
+
+let currentFlipTime = 900;
+let handoffTimer = 0;
+let inputLocked = false;
+let currentUsePortrait = null;
 let currentShowCover = null;
 
 const isMobile = () =>
-  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+  window.innerWidth <= 768;
 if (isMobile()) document.body.classList.add("is-mobile");
 
-// Image rendering
+// Imaging
 const supportsWebP = (() => {
   try { return document.createElement("canvas").toDataURL("image/webp").startsWith("data:image/webp"); }
   catch { return false; }
@@ -50,11 +54,11 @@ const QUALITY_PREVIEW = 0.62;
 const QUALITY_FINAL = 0.92;
 const CONCURRENCY = isMobile() ? 2 : 4;
 
-let pageSrc = [];                 // data URLs for each page (preview/high)
+let pageSrc = [];
 const haveLow = new Set();
 const haveHigh = new Set();
 
-// Progress helpers
+// Helpers
 function setBusy(msg, pct){
   if (!progressUI) return;
   progressUI.hidden = false;
@@ -100,16 +104,19 @@ function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Da
   }, { passive: true });
 
   window.addEventListener("orientationchange", () => setTimeout(handleResizeWidthChange, 250), { passive: true });
-  window.addEventListener("pageshow", (e) => { if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex()); });
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted && flip) buildFlipbook(flip.getCurrentPageIndex());
+  });
 })();
 
-// PDF load + previews
+// PDF loading with retries
 async function loadPdfWithRetry(url, tries = 3, delay = 300){
   for (let i = 0; i < tries; i++) {
     try { await loadPdf(i ? bust(url) : url); return; }
     catch (e) { if (i === tries - 1) throw e; await new Promise(r => setTimeout(r, delay * (i + 1))); }
   }
 }
+
 async function loadPdf(src){
   setBusy("Loading PDF…", 3);
   const task = pdfjsLib.getDocument({ url: src, disableRange: false, disableStream: false, disableAutoFetch: false });
@@ -134,13 +141,13 @@ async function loadPdf(src){
 
   pageSrc = new Array(pdfPageCount).fill("");
 
-  // Render low-res previews for ALL pages before first build to avoid blanks
+  // Previews for all pages to avoid blank frames on first paint
   setBusy("Rendering previews…", 5);
   await renderAllPreviews(scalePreview, (done) => {
     setBusy("Rendering previews…", 5 + (done / pdfPageCount) * 45);
   });
 
-  // Start high-res hydration in the background
+  // High-res hydration in background
   (async () => {
     for (let i = 1; i <= pdfPageCount; i++) {
       if (haveHigh.has(i)) continue;
@@ -152,12 +159,12 @@ async function loadPdf(src){
     }
   })();
 
-  // First build starts at page 1 (index 0) by default
   buildFlipbook(0);
   await buildOutlineNav();
   clearBusyAndRemove();
   updateMobileNavHeight();
 }
+
 async function renderAllPreviews(scale, onEach){
   let next = 1, done = 0;
   const workers = Array.from({length: CONCURRENCY}, () => (async function worker(){
@@ -174,6 +181,7 @@ async function renderAllPreviews(scale, onEach){
   })());
   await Promise.all(workers);
 }
+
 async function renderPageURL(pageNum, scale, high){
   const page = await pdfDoc.getPage(pageNum);
   const vp = page.getViewport({ scale });
@@ -185,7 +193,7 @@ async function renderPageURL(pageNum, scale, high){
   return canvas.toDataURL(IMG_MIME, high ? QUALITY_FINAL : QUALITY_PREVIEW);
 }
 
-// Layout + build
+// Layout & build
 function computePageSize(pagesAcross){
   const r = safeRect(document.querySelector(".stage"));
   const maxW = Math.max(320, r.w - 16);
@@ -198,15 +206,13 @@ function computePageSize(pagesAcross){
   return (w < 260 || h < 260) ? null : { w, h };
 }
 
-/* Decide desired mode for a given page index */
 function modeForIndex(idx){
   if (isMobile()) return { pagesAcross: 1, usePortrait: true,  showCover: false };
-  if (idx === 0)  return { pagesAcross: 1, usePortrait: true,  showCover: false }; // Cover centered
-  return             { pagesAcross: 2, usePortrait: false, showCover: true  };     // Spreads from page 2+
+  if (idx === 0)  return { pagesAcross: 1, usePortrait: true,  showCover: false }; // cover centered
+  return             { pagesAcross: 2, usePortrait: false, showCover: true  };     // spreads from page 2+
 }
 
 function buildFlipbook(startIndex){
-  // Compute mode based on the page we want to show
   const mode = modeForIndex(startIndex);
   const sz = computePageSize(mode.pagesAcross);
   if (!sz) { requestAnimationFrame(() => buildFlipbook(startIndex)); return; }
@@ -215,7 +221,6 @@ function buildFlipbook(startIndex){
   if (flip) { try { flip.destroy(); } catch(e){} }
   bookEl.innerHTML = "";
 
-  // Create new instance
   const flipTime = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900;
   currentFlipTime = flipTime;
 
@@ -237,7 +242,6 @@ function buildFlipbook(startIndex){
 
   flip = new St.PageFlip(bookEl, opts);
 
-  // When initialized, jump to the desired page and update UI
   flip.on("init", () => {
     const ix = Math.max(0, Math.min(startIndex, pageSrc.length - 1));
     try { flip.turnToPage(ix); } catch(e){}
@@ -247,21 +251,18 @@ function buildFlipbook(startIndex){
 
   flip.loadFromImages(pageSrc);
 
-  // Remember current mode so we know if a later flip crosses the cover boundary
   currentUsePortrait = mode.usePortrait;
   currentShowCover = mode.showCover;
 
-  // Tag images (helps our swapPage to find the right <img/>)
   requestAnimationFrame(tagImagesThrottled);
 
-  // On every flip: hydrate nearby, update pager/nav, and schedule a mode handoff if needed
   flip.on("flip", () => {
     updatePager();
     const idx = flip.getCurrentPageIndex();
     highlightActiveInNav(idx);
     scheduleHandoffIfNeeded(idx);
 
-    // Nearby high-res hydration
+    // Nearby hydration
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
     const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
     const stage = document.querySelector(".stage");
@@ -273,28 +274,33 @@ function buildFlipbook(startIndex){
   });
 }
 
-/* If the user crosses the cover boundary (0 ⇄ 1) on desktop, rebuild AFTER the flip ends */
+// Handoff between cover (single) and spreads (double) only AFTER animation
 function scheduleHandoffIfNeeded(idx){
-  if (isMobile() || !flip) return;
+  if (!flip || isMobile()) return;
   const want = modeForIndex(idx);
-  const needHandoff = (want.usePortrait !== currentUsePortrait) || (want.showCover !== currentShowCover);
-  if (!needHandoff) return;
+  const need = (want.usePortrait !== currentUsePortrait) || (want.showCover !== currentShowCover);
+  if (!need) return;
 
   if (handoffTimer) { clearTimeout(handoffTimer); handoffTimer = 0; }
-  // Delay slightly past the flip animation to avoid tearing
+  inputLocked = true; // temporarily ignore inputs during handoff
+
   handoffTimer = setTimeout(() => {
     const cur = flip?.getCurrentPageIndex?.();
-    if (typeof cur === "number") buildFlipbook(cur);
+    if (typeof cur === "number") {
+      buildFlipbook(cur);
+    }
+    inputLocked = false;
     handoffTimer = 0;
   }, currentFlipTime + 30);
 }
 
-// Image swapping + hydration
+// Swap in high-res rendering when ready
 function swapPage(pageIndex0, url){
   pageSrc[pageIndex0] = url;
   const img = bookEl.querySelector(`img[data-page-index="${pageIndex0}"]`);
   if (img && img.src !== url) img.src = url;
 }
+
 function hydrateAround(centerIdx0, scaleFinal){
   const targets = new Set([centerIdx0-2, centerIdx0-1, centerIdx0, centerIdx0+1, centerIdx0+2]);
   targets.forEach(async (i0) => {
@@ -311,14 +317,15 @@ function hydrateAround(centerIdx0, scaleFinal){
 
 // Controls
 function bindControls(){
-  prevBtn.addEventListener("click", () => { if (flip) flip.flipPrev(); });
-  nextBtn.addEventListener("click", () => { if (flip) flip.flipNext(); });
+  prevBtn.addEventListener("click", () => { if (!inputLocked && flip) flip.flipPrev(); });
+  nextBtn.addEventListener("click", () => { if (!inputLocked && flip) flip.flipNext(); });
   document.addEventListener("keydown", (e) => {
-    if (!flip) return;
+    if (!flip || inputLocked) return;
     if (e.key === "ArrowLeft")  { e.preventDefault(); flip.flipPrev(); }
     if (e.key === "ArrowRight") { e.preventDefault(); flip.flipNext(); }
   });
 }
+
 function updatePager(){
   if (!flip) return;
   const idx0 = flip.getCurrentPageIndex();
@@ -328,7 +335,7 @@ function updatePager(){
   nextBtn.disabled = idx0 >= (flip.getPageCount() - 1);
 }
 
-// Outline / nav (unchanged)
+// Outline & nav
 async function buildOutlineNav(){
   try {
     const outline = await pdfDoc.getOutline();
@@ -360,7 +367,7 @@ async function buildOutlineNav(){
       chip.dataset.page = String(it.page);
       chip.addEventListener("click", () => {
         const p = parseInt(chip.dataset.page, 10);
-        if (Number.isFinite(p) && flip) {
+        if (Number.isFinite(p) && flip && !inputLocked) {
           try { flip.turnToPage(p - 1); } catch(e){}
           highlightActiveInNav(p - 1);
         }
@@ -371,6 +378,7 @@ async function buildOutlineNav(){
     navList.innerHTML = "<div class='status'>Contents unavailable.</div>";
   }
 }
+
 async function makeNavEntry(item, depth){
   const pageNumber = await resolveOutlineItemToPage(item);
   const wrap = document.createElement("div");
@@ -381,7 +389,7 @@ async function makeNavEntry(item, depth){
   if (pageNumber) btn.dataset.page = String(pageNumber);
   btn.addEventListener("click", () => {
     const p = parseInt(btn.dataset.page, 10);
-    if (Number.isFinite(p) && flip) {
+    if (Number.isFinite(p) && flip && !inputLocked) {
       try { flip.turnToPage(p - 1); } catch(e){}
       highlightActiveInNav(p - 1);
     }
@@ -395,6 +403,7 @@ async function makeNavEntry(item, depth){
   }
   return wrap;
 }
+
 async function flattenOutline(items, depth = 0, acc = []){
   for (const it of items) {
     const page = await resolveOutlineItemToPage(it);
@@ -404,6 +413,7 @@ async function flattenOutline(items, depth = 0, acc = []){
   }
   return acc;
 }
+
 async function resolveOutlineItemToPage(item){
   try {
     if (!item) return null;
@@ -421,6 +431,7 @@ async function resolveOutlineItemToPage(item){
   } catch {}
   return null;
 }
+
 function highlightActiveInNav(currentIdx0){
   const pdfPage = currentIdx0 + 1;
 
@@ -462,7 +473,7 @@ function highlightActiveInNav(currentIdx0){
   }
 }
 
-// Resize → rebuild with the appropriate mode for whatever page we’re on
+// Resize → rebuild using the mode appropriate for current page
 function handleResizeWidthChange(){
   updateToolbarVar();
   const id = ++resizeToken;
@@ -475,7 +486,7 @@ function handleResizeWidthChange(){
   }, 120);
 }
 
-/* --- image tagging so swapPage finds the nodes reliably --- */
+/* --- image tagging to keep swapPage reliable --- */
 let tagTimer = null;
 function tagImages(){
   const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
