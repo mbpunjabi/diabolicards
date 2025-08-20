@@ -2,7 +2,6 @@ const PDF_URL = "assets/the-guide-bookmarks.pdf";
 if (window.pdfjsLib) {
   pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
 }
-
 const prevBtn = document.getElementById("prev");
 const nextBtn = document.getElementById("next");
 const pageNow = document.getElementById("pageNow");
@@ -18,26 +17,16 @@ const toolbar = document.querySelector(".toolbar");
 
 let flip = null;
 let pdfDoc = null;
+let pageImages = [];
 let baseW = 0, baseH = 0;
 let pdfPageCount = 0;
 let resizeToken = 0;
 let lastWidth = window.innerWidth;
 
-const isMobile = () => /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+function isMobile() {
+  return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth <= 768;
+}
 if (isMobile()) document.body.classList.add("is-mobile");
-
-const supportsWebP = (() => {
-  try { return document.createElement("canvas").toDataURL("image/webp").indexOf("data:image/webp") === 0; }
-  catch { return false; }
-})();
-const IMG_MIME = supportsWebP ? "image/webp" : "image/jpeg";
-const QUALITY_PREVIEW = 0.62;
-const QUALITY_FINAL = 0.92;
-const CONCURRENCY = isMobile() ? 2 : 4;
-
-let pageSrc = [];            // data URLs for all pages (index 0 = transparent)
-const haveLow = new Set();   // pdf page numbers that have preview
-const haveHigh = new Set();  // pdf page numbers that have high-res
 
 function setBusy(msg, pct){
   if (!progressUI) return;
@@ -63,23 +52,23 @@ function updateMobileNavHeight(){
   const h = document.getElementById("navStrip")?.offsetHeight || 0;
   document.documentElement.style.setProperty("--mobile-nav-h", `${Math.max(40, h)}px`);
 }
+function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
 function safeRect(el){
   const r = el?.getBoundingClientRect?.() || { width: 0, height: 0 };
   return { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
 }
-function bust(u){ return u.includes("?") ? `${u}&t=${Date.now()}` : `${u}?t=${Date.now()}`; }
 
 (async function init(){
   updateToolbarVar();
   await loadPdfWithRetry(PDF_URL, 3, 300);
   bindControls();
 
-  // Only rebuild on width changes (ignore height-only chrome bounces)
+  // Only rebuild on width changes (ignore height-only changes from address bar show/hide)
   window.addEventListener("resize", () => {
+    const id = ++resizeToken;
     const w = window.innerWidth;
     if (Math.abs(w - lastWidth) < 2) return;
     lastWidth = w;
-    const id = ++resizeToken;
     setTimeout(() => { if (id === resizeToken) handleResizeWidthChange(); }, 120);
   }, { passive: true });
 
@@ -96,12 +85,7 @@ async function loadPdfWithRetry(url, tries = 3, delay = 300){
 
 async function loadPdf(src){
   setBusy("Loading PDF…", 3);
-  const task = pdfjsLib.getDocument({
-    url: src,
-    disableRange: false,
-    disableStream: false,
-    disableAutoFetch: false
-  });
+  const task = pdfjsLib.getDocument({ url: src });
   pdfDoc = await task.promise;
   pdfPageCount = pdfDoc.numPages;
   pageTotal.textContent = String(pdfPageCount);
@@ -116,82 +100,34 @@ async function loadPdf(src){
 
   const dpr = Math.min(window.devicePixelRatio || 1, 3);
   const qualityBoost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
-  const scalePreview = displayScale * (isMobile() ? 1.15 : 1.0);
-  const scaleFinal = displayScale * qualityBoost;
+  const renderScale = displayScale * qualityBoost;
 
   baseW = Math.floor(vp1.width * displayScale);
   baseH = Math.floor(vp1.height * displayScale);
 
-  // Prepare container with a transparent first page (so cover is on the right)
+  pageImages = [];
+
   const blank = document.createElement("canvas");
   blank.width = Math.floor(vp1.width * displayScale);
   blank.height = Math.floor(vp1.height * displayScale);
-  const blankURL = blank.toDataURL("image/png");
+  pageImages.push(blank.toDataURL("image/png"));
 
-  pageSrc = new Array(pdfPageCount + 1).fill(blankURL); // index 0 = transparent
-  haveLow.clear(); haveHigh.clear();
+  for (let i = 1; i <= pdfDoc.numPages; i++) {
+    setBusy(`Rendering page ${i} of ${pdfDoc.numPages}…`, (i / pdfDoc.numPages) * 100);
+    const page = i === 1 ? first : await pdfDoc.getPage(i);
+    const vp = page.getViewport({ scale: renderScale });
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    canvas.width = Math.floor(vp.width);
+    canvas.height = Math.floor(vp.height);
+    await page.render({ canvasContext: ctx, viewport: vp, intent: "display" }).promise;
+    pageImages.push(canvas.toDataURL("image/jpeg", 0.92));
+  }
 
-  // Render low-res previews for ALL pages with limited concurrency
-  setBusy("Rendering previews…", 5);
-  await renderAllPreviews(scalePreview, (done) => {
-    setBusy("Rendering previews…", 5 + (done / pdfPageCount) * 45);
-  });
-
-  // Ensure cover is high-res immediately
-  try {
-    const hi1 = await renderPageURL(1, scaleFinal, true);
-    pageSrc[1] = hi1; haveHigh.add(1);
-  } catch {}
-
-  // Build the book from previews (no blanks beyond the transparent first page)
   buildFlipbook(1);
   await buildOutlineNav();
   clearBusyAndRemove();
   updateMobileNavHeight();
-
-  // Upgrade nearby pages to high-res in the background
-  hydrateAround(1, scaleFinal);
-  // Then upgrade the rest opportunistically
-  (async () => {
-    for (let i = 2; i <= pdfPageCount; i++) {
-      if (haveHigh.has(i)) continue;
-      try {
-        const hi = await renderPageURL(i, scaleFinal, true);
-        haveHigh.add(i);
-        swapPage(i, hi);
-      } catch {}
-    }
-  })();
-
-  async function renderAllPreviews(scale, onEach){
-    let next = 1;
-    let done = 0;
-    const workers = Array.from({length: CONCURRENCY}, () => (async function worker(){
-      while (true) {
-        const idx = next++;
-        if (idx > pdfPageCount) break;
-        try {
-          const url = await renderPageURL(idx, scale, false);
-          pageSrc[idx] = url;
-          haveLow.add(idx);
-          done++; onEach && onEach(done);
-        } catch { done++; onEach && onEach(done); }
-      }
-    })());
-    await Promise.all(workers);
-  }
-}
-
-async function renderPageURL(pageNum, scale, high){
-  const page = await pdfDoc.getPage(pageNum);
-  const vp = page.getViewport({ scale });
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d", { willReadFrequently: false });
-  canvas.width = Math.floor(vp.width);
-  canvas.height = Math.floor(vp.height);
-  await page.render({ canvasContext: ctx, viewport: vp, intent: "display" }).promise;
-  const q = high ? QUALITY_FINAL : QUALITY_PREVIEW;
-  return canvas.toDataURL(IMG_MIME, q);
 }
 
 function computePageSize(pagesAcross){
@@ -232,57 +168,18 @@ function buildFlipbook(startIndex){
     };
 
     flip = new St.PageFlip(bookEl, opts);
-    flip.loadFromImages(pageSrc);
+    flip.loadFromImages(pageImages);
 
-    // tag each IMG with its page index so later swaps are reliable
-    requestAnimationFrame(() => {
-      const imgs = bookEl.querySelectorAll(".stf__item img, .stf__page img, img");
-      imgs.forEach((img, i) => {
-        img.dataset.pageIndex = String(i);
-        img.decoding = "async";
-        img.loading = "eager";
-      });
-    });
-
-    const ix = Math.max(0, Math.min(startIndex, pageSrc.length - 1));
+    const ix = Math.max(0, Math.min(startIndex, pageImages.length - 1));
     try { flip.turnToPage(ix); } catch(e){}
 
     flip.on("flip", () => {
       updatePager();
-      const idx = flip.getCurrentPageIndex();
-      highlightActiveInNav(idx);
-      // Upgrade nearby pages to high-res
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
-      const stage = document.querySelector(".stage");
-      const r = safeRect(stage);
-      const targetH = Math.max(360, r.h - 16);
-      const displayScale = baseH ? (targetH / (baseH / (targetH / baseH))) : 1; // keep proportional
-      const scaleFinal = displayScale * boost;
-      hydrateAround(idx, scaleFinal);
+      highlightActiveInNav(flip.getCurrentPageIndex());
     });
 
     updatePager();
     highlightActiveInNav(ix);
-  });
-}
-
-function swapPage(index, url){
-  pageSrc[index] = url;
-  const img = bookEl.querySelector(`img[data-page-index="${index}"]`);
-  if (img && img.src !== url) img.src = url;
-}
-
-function hydrateAround(centerIdx, scaleFinal){
-  const targets = new Set([centerIdx-2, centerIdx-1, centerIdx, centerIdx+1, centerIdx+2]);
-  targets.forEach(async (p) => {
-    if (p < 1 || p > pdfPageCount) return;
-    if (haveHigh.has(p)) return;
-    try {
-      const hi = await renderPageURL(p, scaleFinal, true);
-      haveHigh.add(p);
-      swapPage(p, hi);
-    } catch {}
   });
 }
 
@@ -367,13 +264,6 @@ async function buildOutlineNav(){
         if (Number.isFinite(idx)) {
           goTo(idx);
           highlightActiveInNav(idx);
-          const dpr = Math.min(window.devicePixelRatio || 1, 3);
-          const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
-          const stage = document.querySelector(".stage");
-          const r = safeRect(stage);
-          const targetH = Math.max(360, r.h - 16);
-          const displayScale = baseH ? (targetH / (baseH / (targetH / baseH))) : 1;
-          hydrateAround(idx, displayScale * boost);
         }
       });
       navStrip.appendChild(chip);
@@ -396,13 +286,6 @@ async function makeNavEntry(item, depth){
     if (Number.isFinite(idx)) {
       goTo(idx);
       highlightActiveInNav(idx);
-      const dpr = Math.min(window.devicePixelRatio || 1, 3);
-      const boost = isMobile() ? Math.min(Math.max(1.75, dpr * 1.25), 2.5) : Math.min(Math.max(1.25, dpr), 1.75);
-      const stage = document.querySelector(".stage");
-      const r = safeRect(stage);
-      const targetH = Math.max(360, r.h - 16);
-      const displayScale = baseH ? (targetH / (baseH / (targetH / baseH))) : 1;
-      hydrateAround(idx, displayScale * boost);
     }
   });
   wrap.appendChild(btn);
@@ -433,7 +316,7 @@ async function resolveOutlineItemToPage(item){
     if (Array.isArray(dest) && dest[0]) {
       const ref = dest[0];
       const pageIndex = await pdfDoc.getPageIndex(ref);
-      return pageIndex + 1; // accounting for inserted blank at [0]
+      return pageIndex + 1; // accounts for inserted blank at index 0
     }
     if (typeof item.url === "string") {
       const m = item.url.match(/[#?]page=(\d+)/i);
