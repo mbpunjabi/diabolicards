@@ -7,8 +7,8 @@
   --radius:16px;
   --sidebar-w: 300px;
   --toolbar-h: 64px;
-  --avail-h: 72vh;
   --mobile-nav-h: 56px;
+  --stage-h: calc(100dvh - var(--toolbar-h) - 48px);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
@@ -17,6 +17,7 @@ body{
   color:var(--text);
   background: #06080c url("assets/guide-bg.png") center / cover fixed no-repeat;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
+  overscroll-behavior-y: contain;
 }
 .bg-overlay{position:fixed;inset:0;background:radial-gradient(1200px 700px at 70% 10%, rgba(7,11,17,.55), rgba(3,5,8,.86));pointer-events:none;z-index:0}
 .shell{position:relative;z-index:1;max-width:min(1440px,96vw);margin:2rem auto;display:grid;gap:12px}
@@ -43,7 +44,7 @@ body{
   box-shadow:0 12px 32px var(--shadow);
   padding:10px;
   overflow:auto;
-  max-height: var(--avail-h);
+  max-height: var(--stage-h);
 }
 
 .nav-head{font-family:"Bebas Neue",system-ui,sans-serif;font-size:22px;letter-spacing:.06em;color:#b7cdf0;margin:4px 6px 10px;user-select:none}
@@ -56,7 +57,7 @@ body{
 
 .stage{
   position:relative;
-  height: var(--avail-h);
+  height: var(--stage-h);
   border-radius:var(--radius);
   background:radial-gradient(800px 500px at 70% 10%, rgba(12,19,30,.7), rgba(7,10,15,.6));
   border:1px solid #1b2330;
@@ -70,13 +71,23 @@ body{
 
 #book{ width:auto; height:auto; }
 
-/* Make PageFlip layers transparent so the blank page shows the site bg */
+/* Kill white frame: force PageFlip internals transparent & borderless */
+#book .stf__wrapper,
+#book .stf__book,
+#book .stf__page,
+#book .stf__item,
+#book .stf__block,
 #book .page,
 #book .page__content,
-#book .stf__page,
-#book .stf__canvas,
-#book .stf__item {
+#book canvas{
   background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Let PageFlip still draw its own dynamic page-drop shadow (option) */
+#book .stf__shadow{
+  box-shadow: none !important;
 }
 
 .counter{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d141d;border:1px solid #1b2330}
@@ -87,15 +98,17 @@ body{
 .status{font:12px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;color:var(--muted);text-shadow:0 2px 0 rgba(0,0,0,.3)}
 .tip{opacity:.9}
 
-/* Mobile layout overrides */
-body.is-mobile{ --sidebar-w: 100%; }
+/* Mobile overrides */
+body.is-mobile{
+  --sidebar-w: 100%;
+  --stage-h: calc(100dvh - var(--toolbar-h) - var(--mobile-nav-h) - 16px);
+  background-attachment: scroll; /* avoid iOS fixed bg stretch/flicker */
+}
 body.is-mobile .layout{ grid-template-columns: 1fr; }
 body.is-mobile .sidebar{ display: none; }
 
 /* Bottom horizontal contents strip (mobile) */
-.nav-strip{
-  display:none;
-}
+.nav-strip{ display:none; }
 body.is-mobile .nav-strip{
   display:block;
   position:sticky;
@@ -128,7 +141,8 @@ body.is-mobile .nav-strip{
 }
 .nav-chip.active{ background:#0f1b2a; border-color:#274567; }
 
-body.is-mobile .stage{
-  /* Reserve space for the bottom strip */
-  height: calc(var(--avail-h) - var(--mobile-nav-h));
+/* Fallback if 100dvh unsupported */
+@supports not (height: 100dvh){
+  :root{ --stage-h: calc(72vh); }
+  body.is-mobile{ --stage-h: calc(72vh - var(--mobile-nav-h)); }
 }
