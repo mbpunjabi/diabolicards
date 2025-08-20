@@ -74,15 +74,13 @@ body{
 
 #book{ width:auto; height:auto; }
 
-/* Nuke white frame in Samsung Internet / Chromium variants */
+/* Force PageFlip internals transparent/borderless (fixes white frame) */
 #book, #book *{
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
   outline: 0 !important;
 }
-
-/* Keep PageFlip’s dynamic drop shadow off */
 #book .stf__shadow{ box-shadow:none !important; }
 
 .counter{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d141d;border:1px solid #1b2330}
@@ -93,7 +91,7 @@ body{
 .status{font:12px system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,"Helvetica Neue",Arial,sans-serif;color:var(--muted);text-shadow:0 2px 0 rgba(0,0,0,.3)}
 .tip{opacity:.9}
 
-/* Mobile overrides */
+/* Mobile */
 body.is-mobile{
   --sidebar-w: 100%;
   --stage-h: calc(100svh - var(--toolbar-h) - var(--mobile-nav-h) - 16px);
@@ -102,7 +100,6 @@ body.is-mobile{
 body.is-mobile .layout{ grid-template-columns: 1fr; }
 body.is-mobile .sidebar{ display: none; }
 
-/* Bottom horizontal contents strip (mobile) */
 .nav-strip{ display:none; }
 body.is-mobile .nav-strip{
   display:block;
