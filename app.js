@@ -199,7 +199,8 @@ function computePageSize(pagesAcross){
 
 function buildFlipbook(startIndex){
   requestAnimationFrame(() => {
-    const pagesAcross = (isMobile() || coverMode) ? 1 : 2; // single at start on desktop
+    const isSingle = (isMobile() || coverMode);
+    const pagesAcross = isSingle ? 1 : 2;
     const sz = computePageSize(pagesAcross);
     if (!sz) return requestAnimationFrame(() => buildFlipbook(startIndex));
 
@@ -214,9 +215,9 @@ function buildFlipbook(startIndex){
       maxShadowOpacity: 0.22,
       drawShadow: true,
       flippingTime: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 400 : 900,
-      showCover: true,
       mobileScrollSupport: true,
-      usePortrait: isMobile() || coverMode, // <- single cover on desktop
+      usePortrait: isSingle,       // single page while on cover or on mobile
+      showCover: !isSingle,        // IMPORTANT: off in single mode so page centers
       size: "fixed",
       width: sz.w,
       height: sz.h
@@ -241,7 +242,7 @@ function buildFlipbook(startIndex){
       updatePager();
       const idx = flip.getCurrentPageIndex();
 
-      // As soon as you leave page 0 on desktop, switch to spreads
+      // Leaving the cover on desktop → switch to spreads + enable showCover
       if (coverMode && idx > 0 && !isMobile()) {
         coverMode = false;
         const sz2 = computePageSize(2);
@@ -305,7 +306,7 @@ function bindControls(){
 }
 
 function goTo(idx0){
-  // If jumping via ToC from the cover, also switch to spreads
+  // Jumping via ToC from the cover → switch to spreads + enable showCover
   if (coverMode && idx0 > 0 && !isMobile() && flip) {
     coverMode = false;
     const sz2 = computePageSize(2);
@@ -314,6 +315,7 @@ function goTo(idx0){
   const clamped = Math.max(0, Math.min(idx0, (flip?.getPageCount?.() || 1) - 1));
   try { flip.turnToPage(clamped); } catch(e){}
 }
+
 
 function updatePager(){
   if (!flip) return;
