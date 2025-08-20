@@ -171,3 +171,20 @@ body.is-mobile .nav-strip{
   .counter{ padding:4px 8px }
   .btn{ padding:8px 10px }
 }
+
+/* Kill PageFlip’s white insert on the cover */
+#book .stf__outer,
+#book .stf__wrapper,
+#book .stf__block,
+#book .stf__item,
+#book .stf__page,
+#book .stf__hard,
+#book .stf__inner,
+#book canvas{
+  background: transparent !important;      /* <- new */
+  background-color: transparent !important;
+}
+#book .stf__item::before,
+#book .stf__page::before{
+  background: transparent !important;
+}
