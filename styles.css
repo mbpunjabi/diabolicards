@@ -1,3 +1,5 @@
+/* styles.css — updated to remove white frame, keep focus rings, and optimize mobile spacing */
+
 :root{
   --accent:#1f9df0;
   --panel:#111419;
@@ -72,6 +74,7 @@ body{
   will-change: contents;
 }
 
+/* Flipbook root */
 #book{ width:auto; height:auto; }
 
 /* Force PageFlip internals transparent/borderless (fixes white frame) */
@@ -79,9 +82,35 @@ body{
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
-  outline: 0 !important;
+}
+/* additional wrappers + pseudos that draw white */
+#book .stf__outer,
+#book .stf__wrapper,
+#book .stf__block,
+#book .stf__item,
+#book .stf__page,
+#book .stf__hard,
+#book .stf__inner,
+#book canvas{
+  background-color: transparent !important;
+}
+#book .stf__item::before,
+#book .stf__page::before{
+  background: transparent !important;
 }
 #book .stf__shadow{ box-shadow:none !important; }
+
+/* keep keyboard focus visible */
+#book :focus-visible{
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px;
+}
+
+/* prevent accidental drags/selections on page images */
+#book img{
+  user-select: none;
+  -webkit-user-drag: none;
+}
 
 .counter{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d141d;border:1px solid #1b2330}
 .progress-wrap{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;pointer-events:none;transition:opacity .2s ease}
@@ -99,6 +128,9 @@ body.is-mobile{
 }
 body.is-mobile .layout{ grid-template-columns: 1fr; }
 body.is-mobile .sidebar{ display: none; }
+
+/* ensure progress/etc. never hides behind the mobile strip */
+body.is-mobile .stage{ padding-bottom: calc(8px + var(--mobile-nav-h)); }
 
 .nav-strip{ display:none; }
 body.is-mobile .nav-strip{
@@ -137,4 +169,11 @@ body.is-mobile .nav-strip{
 @supports not (height: 100svh){
   :root{ --stage-h: calc(100dvh - var(--toolbar-h) - 48px); }
   body.is-mobile{ --stage-h: calc(100dvh - var(--toolbar-h) - var(--mobile-nav-h) - 16px); }
+}
+
+/* Optional tiny-screen polish */
+@media (max-width: 420px){
+  .toolbar{ gap:6px; padding:8px }
+  .counter{ padding:4px 8px }
+  .btn{ padding:8px 10px }
 }
