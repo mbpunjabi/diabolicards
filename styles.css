@@ -8,14 +8,14 @@
   --sidebar-w: 300px;
   --toolbar-h: 64px;
   --mobile-nav-h: 56px;
-  --stage-h: calc(100dvh - var(--toolbar-h) - 48px);
+  --stage-h: calc(100svh - var(--toolbar-h) - 48px);
 }
 *{box-sizing:border-box}
 html,body{height:100%}
 body{
   margin:0;
   color:var(--text);
-  background: #06080c url("assets/guide-bg.png") center / cover fixed no-repeat;
+  background:#06080c url("assets/guide-bg.png") center / cover no-repeat;
   font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, sans-serif;
   overscroll-behavior-y: contain;
 }
@@ -67,28 +67,23 @@ body{
   align-items:center;
   justify-content:center;
   padding:8px;
+  contain: layout paint size;
+  transform: translateZ(0);
+  will-change: contents;
 }
 
 #book{ width:auto; height:auto; }
 
-/* Kill white frame: force PageFlip internals transparent & borderless */
-#book .stf__wrapper,
-#book .stf__book,
-#book .stf__page,
-#book .stf__item,
-#book .stf__block,
-#book .page,
-#book .page__content,
-#book canvas{
+/* Nuke white frame in Samsung Internet / Chromium variants */
+#book, #book *{
   background: transparent !important;
   border: 0 !important;
   box-shadow: none !important;
+  outline: 0 !important;
 }
 
-/* Let PageFlip still draw its own dynamic page-drop shadow (option) */
-#book .stf__shadow{
-  box-shadow: none !important;
-}
+/* Keep PageFlip’s dynamic drop shadow off */
+#book .stf__shadow{ box-shadow:none !important; }
 
 .counter{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border-radius:10px;background:#0d141d;border:1px solid #1b2330}
 .progress-wrap{position:absolute;left:14px;right:14px;bottom:14px;display:grid;gap:8px;pointer-events:none;transition:opacity .2s ease}
@@ -101,8 +96,8 @@ body{
 /* Mobile overrides */
 body.is-mobile{
   --sidebar-w: 100%;
-  --stage-h: calc(100dvh - var(--toolbar-h) - var(--mobile-nav-h) - 16px);
-  background-attachment: scroll; /* avoid iOS fixed bg stretch/flicker */
+  --stage-h: calc(100svh - var(--toolbar-h) - var(--mobile-nav-h) - 16px);
+  background-attachment: scroll;
 }
 body.is-mobile .layout{ grid-template-columns: 1fr; }
 body.is-mobile .sidebar{ display: none; }
@@ -141,8 +136,8 @@ body.is-mobile .nav-strip{
 }
 .nav-chip.active{ background:#0f1b2a; border-color:#274567; }
 
-/* Fallback if 100dvh unsupported */
-@supports not (height: 100dvh){
-  :root{ --stage-h: calc(72vh); }
-  body.is-mobile{ --stage-h: calc(72vh - var(--mobile-nav-h)); }
+/* Fallback if 100svh unsupported */
+@supports not (height: 100svh){
+  :root{ --stage-h: calc(100dvh - var(--toolbar-h) - 48px); }
+  body.is-mobile{ --stage-h: calc(100dvh - var(--toolbar-h) - var(--mobile-nav-h) - 16px); }
 }
