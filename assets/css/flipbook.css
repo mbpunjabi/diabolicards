@@ -1,0 +1,89 @@
+
+/* Flipbook layout for Guide page */
+.guide-layout{
+  display:grid;
+  grid-template-columns: 260px 1fr;
+  min-height: calc(100vh - 120px);
+  gap: 1rem;
+  padding: 1rem 0 2rem;
+}
+@media (max-width: 980px){
+  .guide-layout{ grid-template-columns: 1fr; }
+  .side-nav{ order: 2 }
+  .flipbook{ order: 1 }
+}
+
+.side-nav{
+  position: sticky; top: 72px;
+  align-self: start;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: .75rem;
+}
+.side-nav h2{
+  font-family: var(--font-subheading);
+  font-size: .95rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin: .25rem 0 .5rem;
+  color: var(--clr-muted);
+}
+.side-nav nav a{
+  display:block;
+  padding: .5rem .6rem;
+  border-radius: 10px;
+  color: var(--clr-text);
+  text-decoration: none;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.side-nav nav a:hover{ background: rgba(255,255,255,.06) }
+.side-nav nav a[aria-current="page"]{ background:#fff; color:#111; }
+
+.flipbook .toolbar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:.5rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: .5rem;
+}
+.flipbook .toolbar button, .flipbook .toolbar input[type="range"]{
+  background: transparent; color: var(--clr-text);
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:10px; padding:.45rem .65rem;
+}
+.flipbook .toolbar .seg{
+  display:inline-flex; border:1px solid rgba(255,255,255,.15); border-radius: 10px; overflow:hidden;
+}
+.flipbook .toolbar .seg button{
+  border:0; border-right:1px solid rgba(255,255,255,.15)
+}
+.flipbook .toolbar .seg button:last-child{ border-right:0 }
+.flipbook .toolbar .status{ margin-left:auto; color: var(--clr-muted) }
+
+.viewer{
+  margin-top: .75rem;
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: clamp(.5rem, 1.5vw, 1rem);
+  display:flex; justify-content:center; align-items:center;
+  overflow: auto;
+}
+.spread{
+  display:flex; gap: .5rem; align-items:flex-start; justify-content:center;
+  transform-origin: center;
+}
+.spread canvas{ display:block; box-shadow: var(--shadow); border-radius: 6px; }
+.spread .page-cover canvas{ box-shadow: 0 10px 30px rgba(0,0,0,.55) }
+
+@media (prefers-reduced-motion: reduce){
+  .spread{ transition:none !important }
+}
+
+/* Tiny helper for hidden when printing to fallback */
+.noscript{
+  border: 1px dashed rgba(255,255,255,.25);
+  padding: .75rem; border-radius: 10px; margin-top:.75rem;
+}

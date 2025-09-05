@@ -11,6 +11,7 @@
 <link rel="preload" href="/assets/fonts/BebasNeue.woff2" as="font" type="font/woff2" crossorigin/>
 <link rel="preload" href="/assets/fonts/KomikaDisplayTight-Regular.woff2" as="font" type="font/woff2" crossorigin/>
   <link rel="stylesheet" href="/assets/css/styles.css"/>
+  <link rel="stylesheet" href="/assets/css/flipbook.css"/>
   <!-- Open Graph -->
   <meta property="og:title" content="The Guide • Diabolicards"/>
   <meta property="og:description" content="Rules, examples, and strategies for Diabolicards."/>
@@ -41,41 +42,51 @@
     </nav>
   </div>
 </header>
-<main id="main">
-
+\1\n
 <section class="hero">
   <div class="container">
-    <div class="card">
-      <h1>The Guide</h1>
-      <p class="lede">Rules and reference. Keep it concise, scannable, and illustrated.</p>
-      <div class="grid">
-        <div class="card">
-          <h2>Setup</h2>
-          <ol>
-            <li>Shuffle the deck and deal N cards to each player.</li>
-            <li>Place the remaining deck in the center as the draw pile.</li>
-            <li>Reveal the top card to start the discard pile.</li>
-          </ol>
+    <div class="guide-layout">
+      <aside class="side-nav">
+        <h2>Navigation</h2>
+        <nav aria-label="Site">
+          <a href="/" >Home</a>
+          <a href="/about/">About</a>
+          <a href="/guide/" aria-current="page">Guide</a>
+          <a href="/faq/">FAQ</a>
+          <a href="/extras/">Extras</a>
+          <a href="/review/">Review</a>
+          <a href="/buy/">Buy</a>
+          <a href="/contact/">Contact</a>
+          <a href="/future-projects/">The Future</a>
+        </nav>
+      </aside>
+      <section class="flipbook">
+        <div class="toolbar">
+          <div class="seg" role="group" aria-label="Page navigation">
+            <button id="first" title="First (Home)">⟪</button>
+            <button id="prev" title="Previous">←</button>
+            <button id="next" title="Next">→</button>
+            <button id="last" title="Last (End)">⟫</button>
+          </div>
+          <div class="seg" role="group" aria-label="Zoom">
+            <button id="zoom-out" title="Zoom out">–</button>
+            <button id="zoom-reset" title="Reset zoom">100%</button>
+            <button id="zoom-in" title="Zoom in">+</button>
+          </div>
+          <button id="download" title="Download PDF">Download</button>
+          <span class="status" id="status" aria-live="polite">Loading…</span>
         </div>
-        <div class="card">
-          <h2>Turn Structure</h2>
-          <ol>
-            <li>Draw one card.</li>
-            <li>Play one card or pass.</li>
-            <li>Resolve effects and end turn.</li>
-          </ol>
+        <div class="viewer" id="viewer">
+          <div class="spread" id="spread" aria-label="Flipbook spread"></div>
         </div>
-        <div class="card">
-          <h2>How to Win</h2>
-          <p>Reach X points first, or be the last player standing depending on your chosen play mode.</p>
+        <div class="noscript">
+          <p>If the flipbook doesn’t load, you can <a id="fallback-link" href="/assets/docs/guide.pdf">download the PDF of the guide</a>.</p>
         </div>
-      </div>
-      <p class="muted">Tip: We can add small inline demos/diagrams later.</p>
+      </section>
     </div>
   </div>
 </section>
-
-</main>
+\n\2
 <footer>
   <div class="container">
     <p>&copy; <span id="year"></span> Diabolicards. All rights reserved.</p>
@@ -83,6 +94,7 @@
   </div>
 </footer>
 <script src="/assets/js/main.js" defer></script>
+<script type="module" src="/assets/js/flipbook.js"></script>
 
 </body>
 </html>
