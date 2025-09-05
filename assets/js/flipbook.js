@@ -1,14 +1,28 @@
 
-// Flipbook viewer for /guide/ — renders assets/docs/guide.pdf
-// Requires pdfjs-dist files at /vendor/pdfjs/pdf.mjs and /vendor/pdfjs/pdf.worker.min.mjs
+// Flipbook viewer for /guide/ — renders assets/docs/guide.pdf and builds outline-based left navigation.
+// Attempts to import local pdfjs; falls back to CDN if missing.
 
 const PDF_URL = '/assets/docs/guide.pdf';
-const WORKER_URL = '/vendor/pdfjs/pdf.worker.min.mjs';
-const MODULE_URL = '/vendor/pdfjs/pdf.mjs';
+const LOCAL_MODULE_URL = '/vendor/pdfjs/pdf.mjs';
+const LOCAL_WORKER_URL = '/vendor/pdfjs/pdf.worker.min.mjs';
+const CDN_BASE = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.7.76/build/';
+const CDN_MODULE_URL = CDN_BASE + 'pdf.mjs';
+const CDN_WORKER_URL = CDN_BASE + 'pdf.worker.min.mjs';
 
-// Dynamically import pdf.js module
-const pdfjsLib = await import(MODULE_URL);
-pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL;
+async function loadPdfJs(){
+  try{
+    const mod = await import(LOCAL_MODULE_URL);
+    mod.GlobalWorkerOptions.workerSrc = LOCAL_WORKER_URL;
+    return mod;
+  }catch(e){
+    console.warn('[Flipbook] Local pdfjs not found, using CDN fallback.', e);
+    const mod = await import(CDN_MODULE_URL);
+    mod.GlobalWorkerOptions.workerSrc = CDN_WORKER_URL;
+    return mod;
+  }
+}
+
+const pdfjsLib = await loadPdfJs();
 
 const DPR = window.devicePixelRatio || 1;
 const viewer = document.getElementById('viewer');
@@ -16,6 +30,7 @@ const spreadEl = document.getElementById('spread');
 const statusEl = document.getElementById('status');
 const fallbackLink = document.getElementById('fallback-link');
 const downloadBtn = document.getElementById('download');
+const outlineNav = document.getElementById('outline-nav');
 
 let pdf, numPages = 0;
 let cursor = 1; // left page of spread (1 is cover)
@@ -37,7 +52,7 @@ function clearTasks(){
 async function renderPage(n){
   const page = await pdf.getPage(n);
   const baseVp = page.getViewport({ scale: 1 });
-  const maxCssWidth = Math.min(900, baseVp.width); // cap a single page width
+  const maxCssWidth = Math.min(900, baseVp.width);
   const scale = (maxCssWidth / baseVp.width) * DPR * zoom;
   const vp = page.getViewport({ scale });
 
@@ -52,6 +67,19 @@ async function renderPage(n){
   await task.promise;
   page.cleanup?.();
   return canvas;
+}
+
+function highlightNav(){
+  if(!outlineNav) return;
+  const pages = spreadFor(cursor, numPages);
+  outlineNav.querySelectorAll('a[data-page]').forEach(a => {
+    const n = parseInt(a.getAttribute('data-page'), 10);
+    if(pages.includes(n)){
+      a.setAttribute('aria-current', 'page');
+    }else{
+      a.removeAttribute('aria-current');
+    }
+  });
 }
 
 async function renderSpread(){
@@ -69,22 +97,14 @@ async function renderSpread(){
     frag.appendChild(wrap);
   }
   spreadEl.replaceChildren(frag);
+  highlightNav();
 
-  // Pre-render neighbors in the background (idle)
-  requestIdleCallback?.(async () => {
-    const ahead = Math.min(numPages, pages[pages.length-1] + 2);
-    const behind = Math.max(1, pages[0] - 2);
-    // Simple cache by forcing browser to decode images
-    try {
-      await Promise.all([ahead, behind].map(async n => {
-        if(n <= 0 || n > numPages) return;
-        const c = await renderPage(n);
-        // Drop immediately to keep memory low
-      }));
-    } catch {}
+  requestIdleCallback?.(() => {
+    // optional: pre-render neighbors; omitted to keep memory modest
   }, { timeout: 300 });
 }
 
+// Buttons
 function goFirst(){ cursor = 1; renderSpread(); }
 function goLast(){ cursor = numPages; renderSpread(); }
 function goPrev(){
@@ -105,7 +125,6 @@ function updateZoomUI(){
   btn.textContent = Math.round(zoom*100) + '%';
 }
 
-// Wire buttons
 document.getElementById('first').addEventListener('click', goFirst);
 document.getElementById('prev').addEventListener('click', goPrev);
 document.getElementById('next').addEventListener('click', goNext);
@@ -115,7 +134,6 @@ document.getElementById('zoom-out').addEventListener('click', zoomOut);
 document.getElementById('zoom-reset').addEventListener('click', zoomReset);
 downloadBtn.addEventListener('click', () => { window.open(PDF_URL, '_blank'); });
 
-// Keyboard shortcuts
 window.addEventListener('keydown', (e) => {
   const tag = (e.target && e.target.tagName) || '';
   if(tag === 'INPUT' || tag === 'TEXTAREA') return;
@@ -128,6 +146,65 @@ window.addEventListener('keydown', (e) => {
   if(e.key === 'End') goLast();
 });
 
+async function buildOutline(){
+  if(!outlineNav) return;
+  try{
+    const outline = await pdf.getOutline();
+    if(!outline || !outline.length){
+      outlineNav.innerHTML = '<p class="muted">No bookmarks found in this PDF.</p>';
+      return;
+    }
+
+    async function pageFromDest(dest){
+      if(!dest) return null;
+      try{
+        const explicitDest = await pdf.getDestination(dest);
+        if(!explicitDest) return null;
+        const ref = explicitDest[0];
+        const pageIndex = await pdf.getPageIndex(ref);
+        return pageIndex + 1;
+      }catch(e){ return null; }
+    }
+
+    async function renderItems(items){
+      const ul = document.createElement('ul');
+      for(const item of items){
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.textContent = (item.title || 'Untitled').toUpperCase();
+        a.href = '#';
+        const pageNum = await pageFromDest(item.dest);
+        if(pageNum){
+          a.dataset.page = String(pageNum);
+          a.addEventListener('click', (e)=>{
+            e.preventDefault();
+            cursor = pageNum;
+            renderSpread();
+          });
+        }else if(item.url){
+          a.href = item.url; a.target = '_blank'; a.rel = 'noopener';
+        }else{
+          a.removeAttribute('href');
+          a.style.opacity = .6;
+        }
+        li.appendChild(a);
+        if(item.items && item.items.length){
+          li.appendChild(await renderItems(item.items));
+        }
+        ul.appendChild(li);
+      }
+      return ul;
+    }
+
+    outlineNav.innerHTML = '';
+    outlineNav.appendChild(await renderItems(outline));
+    highlightNav();
+  }catch(err){
+    console.error('[Flipbook] Failed to build outline', err);
+    outlineNav.innerHTML = '<p class="muted">Could not load bookmarks.</p>';
+  }
+}
+
 // Load PDF
 (async function init(){
   try{
@@ -136,8 +213,13 @@ window.addEventListener('keydown', (e) => {
     pdf = await loading.promise;
     numPages = pdf.numPages;
     await renderSpread();
+    await buildOutline();
   }catch(err){
-    statusEl.textContent = 'Failed to load PDF';
-    console.error(err);
+    console.error('[Flipbook] Failed to load PDF.', err);
+    statusEl.textContent = 'Failed to load PDF. Make sure /assets/docs/guide.pdf exists.';
+    const hint = document.createElement('p');
+    hint.className = 'muted';
+    hint.textContent = 'Common causes: (1) missing guide.pdf, (2) missing pdfjs files (we now fallback to CDN), (3) CORS if hosting elsewhere.';
+    viewer.appendChild(hint);
   }
 })();
