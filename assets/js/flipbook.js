@@ -72,6 +72,22 @@ async function renderPage(n){
 function highlightNav(){
   if(!outlineNav) return;
   const pages = spreadFor(cursor, numPages);
+  let activeItem = null;
+  outlineNav.querySelectorAll('a[data-page]').forEach(a => {
+    const n = parseInt(a.getAttribute('data-page'), 10);
+    if(pages.includes(n)){
+      a.setAttribute('aria-current', 'page');
+      activeItem = a;
+    }else{
+      a.removeAttribute('aria-current');
+    }
+  });
+  if(activeItem){
+    activeItem.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+  if(!outlineNav) return;
+  const pages = spreadFor(cursor, numPages);
   outlineNav.querySelectorAll('a[data-page]').forEach(a => {
     const n = parseInt(a.getAttribute('data-page'), 10);
     if(pages.includes(n)){
@@ -108,11 +124,13 @@ async function renderSpread(){
 function goFirst(){ cursor = 1; renderSpread(); }
 function goLast(){ cursor = numPages; renderSpread(); }
 function goPrev(){
+  animateTurn('turn-prev');
   if(cursor === 1) return;
   if(cursor <= 2){ cursor = 1; } else { cursor -= 2; }
   renderSpread();
 }
 function goNext(){
+  animateTurn('turn-next');
   if(cursor >= numPages) return;
   if(cursor === 1){ cursor = 2; } else { cursor = Math.min(numPages, cursor + 2); }
   renderSpread();
@@ -120,6 +138,14 @@ function goNext(){
 function zoomIn(){ zoom = Math.min(2.5, Math.round((zoom + 0.1)*10)/10); renderSpread(); updateZoomUI(); }
 function zoomOut(){ zoom = Math.max(0.5, Math.round((zoom - 0.1)*10)/10); renderSpread(); updateZoomUI(); }
 function zoomReset(){ zoom = 1; renderSpread(); updateZoomUI(); }
+function animateTurn(dir){
+  spreadEl.classList.remove('turn-next','turn-prev');
+  // Force reflow to restart animation
+  // eslint-disable-next-line no-unused-expressions
+  spreadEl.offsetWidth;
+  spreadEl.classList.add(dir);
+  setTimeout(()=> spreadEl.classList.remove(dir), 400);
+}
 function updateZoomUI(){
   const btn = document.getElementById('zoom-reset');
   btn.textContent = Math.round(zoom*100) + '%';

@@ -93,3 +93,28 @@
 .side-nav nav li{ margin:0 }
 .side-nav nav ul ul{ padding-left:.6rem; border-left:1px solid rgba(255,255,255,.08); margin-left:.4rem }
 .side-nav nav a{ text-transform:uppercase; font-weight:600; letter-spacing:.08em }
+
+
+/* --- Outline nav overrides to avoid global header nav styles --- */
+.side-nav nav ul{ list-style:none; margin:0; padding:0; display:block !important; }
+.side-nav nav li{ margin:0 0 .25rem 0; }
+.side-nav nav a{
+  display:block; padding:.45rem .6rem; border-radius:10px;
+  text-transform:uppercase; letter-spacing:.08em; font-weight:700;
+}
+.side-nav{ max-height: calc(100vh - 120px); overflow:auto; }
+
+/* --- Subtle page-turn animation --- */
+.viewer{ perspective: 1600px; }
+.spread.turn-next{ animation: turnNext .35s ease-in-out; }
+.spread.turn-prev{ animation: turnPrev .35s ease-in-out; }
+@keyframes turnNext{
+  0%{ transform: rotateY(0deg) translateX(0); opacity:1 }
+  50%{ transform: rotateY(-12deg) translateX(-6px); opacity:.95 }
+  100%{ transform: rotateY(0deg) translateX(0); opacity:1 }
+}
+@keyframes turnPrev{
+  0%{ transform: rotateY(0deg) translateX(0); opacity:1 }
+  50%{ transform: rotateY(12deg) translateX(6px); opacity:.95 }
+  100%{ transform: rotateY(0deg) translateX(0); opacity:1 }
+}
