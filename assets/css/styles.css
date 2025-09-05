@@ -1,0 +1,161 @@
+
+/* Diabolicards — Grayscale theme base styles */
+@font-face{
+  font-family: "DCC Ash";
+  src: url('/assets/fonts/DCC-Ash.woff2') format('woff2'), url('/assets/fonts/DCC-Ash.otf') format('opentype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face{
+  font-family: "Bebas Neue";
+  src: url('/assets/fonts/BebasNeue.woff2') format('woff2'), url('/assets/fonts/BebasNeue.otf') format('opentype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face{
+  font-family: "Komika Display Tight";
+  src: url('/assets/fonts/KomikaDisplayTight-Regular.woff2') format('woff2'), url('/assets/fonts/KomikaDisplayTight-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+/* Replace assets/images/bg-placeholder.png with your provided background, or set --bg-image below */
+:root{
+  --font-subheading: "Bebas Neue", var(--font-heading);
+  --clr-bg: #0f0f10;
+  --clr-bg-2: #151516;
+  --clr-surface: #1b1c1e;
+  --clr-muted: #9a9aa0;
+  --clr-text: #e8e8ea;
+  --clr-accent: #e33; /* You can tweak this if you want a subtle red accent */
+  --radius: 16px;
+  --container: 1100px;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+  --font-body: "Komika Display Tight", system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+  --font-heading: "DCC Ash", system-ui, -apple-system, Segoe UI, Roboto, Inter, Arial, sans-serif;
+  --bg-image: url("../images/bg-placeholder.png");
+}
+
+*{ box-sizing: border-box }
+
+html{ scroll-behavior: smooth }
+body{
+  margin: 0;
+  color: var(--clr-text);
+  background: var(--clr-bg) fixed;
+  font-family: var(--font-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-image: radial-gradient(circle at 20% 0%, rgba(255,255,255,.06), transparent 50%),
+                    radial-gradient(circle at 80% 0%, rgba(255,255,255,.04), transparent 50%),
+                    var(--bg-image);
+  background-size: auto, auto, cover;
+  background-position: center top, center top, center;
+}
+
+img{ max-width: 100%; height: auto; display: block }
+
+/* Skip link */
+.skip-link{
+  position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden;
+}
+.skip-link:focus{
+  position:fixed; left:1rem; top:1rem; width:auto; height:auto; padding:.5rem .75rem;
+  background:#000; color:#fff; border-radius:8px; z-index:9999;
+}
+
+/* Container */
+.container{ width:min(100% - 2rem, var(--container)); margin-inline:auto }
+
+/* Header / Nav */
+header{
+  position: sticky; top:0; z-index: 1000;
+  background: linear-gradient(180deg, rgba(15,15,16,.95), rgba(15,15,16,.7));
+  backdrop-filter: blur(6px);
+  border-bottom: 1px solid rgba(255,255,255,.06);
+}
+.nav{ display:flex; align-items:center; justify-content:space-between; padding: .75rem 0 }
+.brand{
+  display:flex; align-items:center; gap:.6rem; font-weight: 700; letter-spacing:.5px; text-decoration:none; color:var(--clr-text)
+}
+.brand img{ width:28px; height:28px }
+nav ul{ list-style:none; display:flex; gap: .25rem; margin:0; padding:0 }
+nav a{
+  display:inline-block; padding:.55rem .8rem; border-radius:10px; text-decoration:none; color:var(--clr-text);
+  transition: transform .15s ease, background .2s ease, color .2s ease;
+}
+nav a:hover{ background: rgba(255,255,255,.06); transform: translateY(-1px) }
+nav a[aria-current="page"]{ background: #fff; color:#111 }
+
+/* Mobile menu */
+.menu-toggle{ display:none; background:none; border:1px solid rgba(255,255,255,.12); padding:.5rem .65rem; border-radius:10px; color:#fff }
+@media (max-width: 900px){
+  nav ul{ display:none; position: absolute; left:0; right:0; top: 56px; background: #111; padding: .5rem; border-bottom:1px solid rgba(255,255,255,.08) }
+  nav ul.open{ display:block }
+  nav li{ padding:.25rem }
+  .menu-toggle{ display:inline-flex; align-items:center; gap:.5rem }
+}
+
+/* Hero */
+.hero{ padding: clamp(3rem, 4vw, 4rem) 0 2rem }
+.hero-inner{
+  display:grid; grid-template-columns: 1.2fr .8fr; gap:2rem; align-items:center
+}
+.hero .card{
+  background: linear-gradient(180deg, rgba(255,255,255,.06), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: clamp(1rem, 3vw, 2rem);
+}
+.hero h1{ font-family: var(--font-heading); font-size: clamp(2rem, 5vw, 3rem); margin:.25rem 0 .5rem }
+.hero p.lede{ font-size: clamp(1.05rem, 2.2vw, 1.25rem); color: var(--clr-muted) }
+.cta{ display:flex; gap:.75rem; flex-wrap:wrap; margin-top:1rem }
+.btn{
+  display:inline-flex; align-items:center; gap:.5rem;
+  padding:.7rem 1rem; border-radius:12px; text-decoration:none; font-weight:600; border:1px solid rgba(255,255,255,.12);
+}
+.btn.primary{ background: #fff; color:#111 }
+.btn.secondary{ background: transparent; color:#fff }
+.btn.secondary:hover{ background: rgba(255,255,255,.08) }
+
+/* Sections */
+section{ padding: clamp(2rem, 4vw, 3rem) 0 }
+h2{ font-size: clamp(1.5rem, 2.5vw, 2rem); margin:0 0 .75rem }
+.card{
+  background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.02));
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+/* Footer */
+footer{
+  margin-top: 3rem;
+  border-top: 1px solid rgba(255,255,255,.08);
+  padding: 2rem 0 3rem;
+  color: var(--clr-muted);
+}
+
+/* Utilities */
+.grid{ display:grid; gap:1rem }
+.grid.cols-3{ grid-template-columns: repeat(3, 1fr) }
+@media (max-width: 900px){ .hero-inner{ grid-template-columns: 1fr } .grid.cols-3{ grid-template-columns: 1fr } }
+.muted{ color: var(--clr-muted) }
+
+/* Accessibility helpers */
+:focus-visible{ outline: 2px dashed #fff; outline-offset: 2px }
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition:none !important; scroll-behavior: auto !important }
+}
+
+
+/* Typography mapping */
+body{ font-family: var(--font-body); }
+h1{ font-family: var(--font-heading); letter-spacing:.5px }
+h2, h3{ font-family: var(--font-subheading); letter-spacing:.5px }
