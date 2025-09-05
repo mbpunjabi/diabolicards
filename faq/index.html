@@ -47,10 +47,65 @@
   <div class="container">
     <div class="card">
       <h1>FAQ</h1>
-      <details class="card"><summary><strong>How many players?</strong></summary><p>2–6 players.</p></details>
-      <details class="card"><summary><strong>How long is a game?</strong></summary><p>About 20–30 minutes.</p></details>
-      <details class="card"><summary><strong>Is there a solo mode?</strong></summary><p>Coming soon — we’ll publish variants here.</p></details>
-      <details class="card"><summary><strong>Will there be expansions?</strong></summary><p>We have ideas! See <a href="/future-projects/">The Future</a>.</p></details>
+      <div class="card" style="display:flex; gap:.5rem; align-items:center; margin-bottom:.75rem">
+        <label for="faq-search" style="flex:1">
+          <span class="muted">Search the FAQ</span>
+          <input id="faq-search" type="search" placeholder="Type to filter questions..." aria-controls="faq-list" style="width:100%; padding:.6rem; border-radius:10px; border:1px solid rgba(255,255,255,.15); background:#111; color:#fff">
+        </label>
+        <output id="faq-count" class="muted" style="min-width:7ch; text-align:right"></output>
+      </div>
+      <div id="faq-list" class="grid" style="gap:.75rem">
+        <details class="card"><summary><strong>What’s the core objective?</strong></summary><p>Build, steal, or eliminate power using card abilities and zone placement. The game ends when no legal plays remain; the side with the highest total power on the table wins (ties stand).</p></details>
+
+        <details class="card"><summary><strong>How many players and modes?</strong></summary><p>Play 1v1 or 2v2. Teammates sit on the same side of the mat, but can’t look at each other’s hands or coordinate secretly.</p></details>
+
+        <details class="card"><summary><strong>What’s in the box?</strong></summary><p>An 80‑card deck split across 11 groups, a two‑sided mat with three zones per side (with slots), and this guide.</p></details>
+
+        <details class="card"><summary><strong>How do we set up?</strong></summary>
+          <ul>
+            <li>Shuffle the main deck and place it in its slot on the mat.</li>
+            <li>Deal starting hands: 1v1 → 6 each; 2v2 → 5 each.</li>
+            <li>Initial contracts: 1v1 → each player transfers 2 face‑up to contract slots; 2v2 → each player transfers 1.</li>
+          </ul>
+        </details>
+
+        <details class="card"><summary><strong>What are the three zones and their slots?</strong></summary><p>Each side has Vask Tower (left), The Gang Hideout (center), and Havenvale Campus (right). Each zone has 9 slots: 8 for regular (R) or diabolical (D) cards, plus 1 bottom slot for diabolical activation. Scorched Earth (SE) cards have no dedicated slots and sit in the empty spaces around zone names.</p></details>
+
+        <details class="card"><summary><strong>What are “linked groups” and synergy?</strong></summary><p>Three groups are zone‑linked: Vask Executives ↔ Vask Tower, The Gang ↔ The Gang Hideout, Havenvale Batch ↔ Havenvale Campus. Linked groups can only use abilities in their own zone; if correctly placed, they may also grant synergy bonuses.</p></details>
+
+        <details class="card"><summary><strong>What does a card show?</strong></summary><p>Each card lists power value, its group (matters for abilities and synergy), a symbols panel, ability text (some depend on group/zone), and the character’s name and type (Human/Apex) and gender—some abilities care about these.</p></details>
+
+        <details class="card"><summary><strong>What types of turns exist?</strong></summary><p>Diabolicards uses a nested turn structure. On your turn choose one option (if allowed by the deck state): a <em>Usual Turn</em> where you play one card, announce/resolve abilities, check effects, give opponents a chance to counter, then draw if possible; or a <em>Contract Turn</em> (see below).</p></details>
+
+        <details class="card"><summary><strong>What are Contracts?</strong></summary><p>Contracts are four face‑up cards you can trade with during Contract Turns. They let you control luck by choosing known cards, but carry risk because Contract Turns can force discards from the main deck.</p></details>
+
+        <details class="card"><summary><strong>When can I take a Contract Turn?</strong></summary><p>Only if the main deck has 10+ cards. Contract Turns cannot be taken consecutively—a Contract Turn must be followed by a Usual Turn.</p></details>
+
+        <details class="card"><summary><strong>How do Contract Trades and Purges work?</strong></summary><p><em>Trade:</em> transfer a card between hand and a contract slot (face‑up). <em>Purge:</em> transfer all four contract cards back into the main deck, shuffle, then reveal four new contract cards face‑up to the slots. Some contract actions cause discards from the main deck. If after a trade there are 0 eligible cards for contracts, a Contract Purge happens automatically.</p></details>
+
+        <details class="card"><summary><strong>What cards are contract‑eligible?</strong></summary><p>All regular groups are eligible. Exceptions: <em>Scorched Earth</em> and <em>The Diabolicals</em> are not eligible for trading in/out of contract slots. They may only appear as initial contract cards during setup.</p></details>
+
+        <details class="card"><summary><strong>What is a Contract Freeze?</strong></summary><p>If all contract slots contain ineligible cards, contracts are frozen. Only a Contract Purge—dependent on the deck state—can return them to the main deck.</p></details>
+
+        <details class="card"><summary><strong>What happens if the deck drops below 10 cards?</strong></summary><p>Contract Turns (and contract cards) are banned for the rest of the game (except where a specific ability like “rewind” changes this).</p></details>
+
+        <details class="card"><summary><strong>What’s in a Usual Turn step‑by‑step?</strong></summary>
+          <ol>
+            <li>Play one legal card to a slot.</li>
+            <li>Announce and resolve its abilities; note ongoing effects.</li>
+            <li>(If applicable) Announce a kill choice.</li>
+            <li>Opponents may counter with an applicable ability (if they remember).</li>
+            <li>Opponents discard any dead cards; permanently dead cards are removed.</li>
+            <li>If the deck isn’t empty, draw one; end turn.</li>
+          </ol>
+        </details>
+
+        <details class="card"><summary><strong>How does the game end?</strong></summary><p>When no legal plays are possible for all players, the game ends. The side with the highest power on the table wins. A tie is a tie.</p></details>
+
+        <details class="card"><summary><strong>Do Scorched Earth and Diabolicals interact normally?</strong></summary><p>Diabolical abilities (in a diabolical slot) affect all groups except Scorched Earth and other diabolicals in diabolical slots. Scorched Earth tends to affect all other groups and each other only in specific scenarios.</p></details>
+
+        <details class="card"><summary><strong>Where can I find advanced rules?</strong></summary><p>See the full guide for layout diagrams, card‑specific abilities, The Diabolicals, “The Last Two”, and named scenarios like “Scorch the Earth”, “Endgame Choices”, and “How Dare You”.</p></details>
+      </div>
     </div>
   </div>
 </section>
@@ -63,6 +118,7 @@
   </div>
 </footer>
 <script src="/assets/js/main.js" defer></script>
+<script src="/assets/js/faq-search.js" defer></script>
 
 </body>
 </html>
