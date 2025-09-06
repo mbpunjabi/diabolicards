@@ -1,1 +1,85 @@
-<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="/assets/css/styles.css"><link rel="stylesheet" href="/assets/css/flipbook.css"></head><body><main id="main"></main><footer></footer><script src="/assets/js/main.js" defer></script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>The Guide • Diabolicards</title>
+  <meta name="description" content="Flipbook version of the Diabolicards guide."/>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml"/>
+  <link rel="stylesheet" href="/assets/css/styles.css"/>
+  <link rel="stylesheet" href="/assets/css/flipbook.css"/>
+  <meta property="og:title" content="The Guide • Diabolicards"/>
+  <meta property="og:description" content="Flip through the Diabolicards guide online."/>
+  <meta property="og:type" content="website"/>
+  <meta property="og:image" content="/assets/images/og-image.png"/>
+  <link rel="canonical" href="https://diabolicards.com/guide/"/>
+  <meta name="theme-color" content="#111111"/>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header>
+  <div class="container nav">
+    <a class="brand" href="/"><img src="/favicon.svg" alt="" aria-hidden="true"/><span>Diabolicards</span></a>
+    <button class="menu-toggle" aria-expanded="false" aria-controls="primary-nav">Menu</button>
+    <nav aria-label="Primary">
+      <ul id="primary-nav">
+        <li><a href="/">Home</a></li>
+        <li><a href="/about/">About</a></li>
+        <li><a href="/guide/" aria-current="page">Guide</a></li>
+        <li><a href="/faq/">FAQ</a></li>
+        <li><a href="/extras/">Extras</a></li>
+        <li><a href="/review/">Review us</a></li>
+        <li><a href="/buy/">Where to buy?</a></li>
+        <li><a href="/contact/">Contact</a></li>
+        <li><a href="/future-projects/">The Future</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero">
+    <div class="container">
+      <div class="guide-layout">
+        <aside class="side-nav">
+          <h2>Navigation</h2>
+          <nav id="outline-nav" aria-label="Guide bookmarks"><p class="muted">Loading outline…</p></nav>
+        </aside>
+        <section class="flipbook">
+          <div class="toolbar">
+            <div class="seg" role="group" aria-label="Page navigation">
+              <button id="first" title="First (Home)">⟪</button>
+              <button id="prev" title="Previous">←</button>
+              <button id="next" title="Next">→</button>
+              <button id="last" title="Last (End)">⟫</button>
+            </div>
+            <div class="seg" role="group" aria-label="Zoom">
+              <button id="zoom-out" title="Zoom out">–</button>
+              <button id="zoom-reset" title="Reset zoom">100%</button>
+              <button id="zoom-in" title="Zoom in">+</button>
+            </div>
+            <button id="download" title="Download PDF">Download</button>
+            <span class="status" id="status" aria-live="polite">Loading…</span>
+          </div>
+          <div class="viewer" id="viewer">
+            <div class="spread" id="spread" aria-label="Flipbook spread"></div>
+          </div>
+          <div class="noscript">
+            <p>If the flipbook doesn’t load, you can <a id="fallback-link" href="/assets/docs/guide.pdf">download the PDF of the guide</a>.</p>
+          </div>
+        </section>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="container">
+    <p>&copy; <span id="year"></span> Diabolicards. All rights reserved.</p>
+    <p class="muted">Made with HTML, CSS, and vanilla JS. Accessibility-first. Performance-conscious.</p>
+  </div>
+</footer>
+<script src="/assets/js/main.js" defer></script>
+<script type="module" src="/assets/js/flipbook-lite.js"></script>
+</body>
+</html>
