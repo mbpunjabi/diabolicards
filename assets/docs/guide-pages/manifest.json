@@ -1,5 +1,32 @@
 {
   "totalPages": 16,
   "imagePattern": "/assets/docs/guide-pages/page-{num:03d}.webp",
-  "outline": []
+  "outline": [
+    {"title":"The Setup","page":5},
+    {"title":"The Card","page":6},
+    {"title":"The Groups","page":7},
+    {"title":"The Turns","page":8},
+    {"title":"The Usual Turn","page":8},
+    {"title":"The Contract Turns","page":8},
+    {"title":"The Contract Trade","page":8},
+    {"title":"The Contract Purge","page":8},
+    {"title":"The Contracts","page":9},
+    {"title":"The Layout","page":10},
+    {"title":"The Zones","page":10},
+    {"title":"The Slots","page":10},
+    {"title":"The Linked Groups","page":11},
+    {"title":"The Zone Link","page":11},
+    {"title":"The Synergy","page":11},
+    {"title":"The Abilities","page":12},
+    {"title":"The Diabolicals","page":13},
+    {"title":"The Activation","page":13},
+    {"title":"The Immunity","page":13},
+    {"title":"The Regularity","page":13},
+    {"title":"The Last Two","page":14},
+    {"title":"The Endgame Choices","page":14},
+    {"title":"The Scorch The Earth Scenario","page":14},
+    {"title":"The How Dare You Scenario","page":14},
+    {"title":"The End","page":15},
+    {"title":"The Extra Stuff","page":15},
+  ]
 }
